@@ -1,0 +1,15 @@
+Package: rgs3
+Title: R package wrapping the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/)
+Version: 0.1.0
+Authors@R: c(
+    person("Timothee", "Flutre", email = "timothee.flutre@supagro.inra.fr", role = c("cre", "aut")))
+Description: The rgs3 package wraps the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/).
+Depends: R (>= 3.0.0)
+License: GPL-3
+Copyright: Institut National de la Recherche Agronomique (INRA)
+LazyData: true
+BugReports: https://github.com/timflutre/rgs3/issues
+Suggests: knitr,
+    rmarkdown,
+    rrBLUP
+VignetteBuilder: knitr
