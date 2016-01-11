@@ -1,6 +1,6 @@
 Package: rgs3
 Title: R package wrapping the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/)
-Version: 0.1.0
+Version: 0.1.1
 Authors@R: c(
     person("Timothee", "Flutre", email = "timothee.flutre@supagro.inra.fr", role = c("cre", "aut")))
 Description: The rgs3 package wraps the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/).

@@ -14,9 +14,15 @@ The content of this directory is versioned using git, the central
 repository being hosted on GitHub:
 https://github.com/timflutre/rgs3
 
-When using this package, the GS3 program should already be installed on your
-machine. As a lot of time and effort were spent in creating this program,
-please cite it when using it for data analysis:
+You can report issues on GitHub directly:
+https://github.com/timflutre/rgs3/issues
+But remember to copy-paste the output of sessionInfo().
+
+When using this package, the latest version of the GS3 program should already
+be installed on your machine (in your PATH, as "gs3" for Linux and "gs3.exe"
+for Windows).
+As a lot of time and effort were spent in creating this program, please cite
+it when using it for data analysis:
 Legarra, A., Ricard, A., Filangi, O. GS3, a  software  for  genome-wide genetic
 evaluations and validations. 2014.
 
@@ -24,13 +30,15 @@ You can also cite this R package:
 R> citation("rgs3")
 See also citation() for citing R itself.
 
-For users, you can directly install the package from GitHub:
+For users, the easiest is to directly install the package from GitHub:
 R> library(devtools); install_github("timflutre/rgs3")
-Otherwise, when retrieving the bundled package (that is, as a tar.gz),
+On Windows, you need to specify "build_vignettes=TRUE".
+In the case where the package is officially released as a "bundled package"
+(e.g. as on CRAN), you can install it directly from inside R via:
+R> install.packages("path/to/rgs3_<version>.tar.gz")
+For advanced users, when retrieving the bundled package (that is, as a tar.gz),
 you can install it from the command-line via:
 $ R CMD INSTALL rgs3_<version>.tar.gz
-or directly from inside R via:
-R> install.packages("path/to/rgs3_<version>.tar.gz")
 
 Once the package is installed, start using it:
 R> library(rgs3)
@@ -41,6 +49,3 @@ of the package in DESCRIPTION and execute the following commands:
 $ Rscript -e 'library(devtools); devtools::document()'
 $ R CMD build rgs3
 $ R CMD check rgs3_<version>.tar.gz
-
-You can report issues on GitHub directly:
-https://github.com/timflutre/rgs3/issues
