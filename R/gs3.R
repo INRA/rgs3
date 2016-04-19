@@ -1,16 +1,18 @@
 ##' Write data
 ##'
 ##' Write the data file for GS3.
-##' @param x data.frame containing trait values, covariables, cross-classified factors and individual identifiers (names of parameter "inds")
+##' @param x data.frame containing individual identifiers (names of parameter "inds"), trait values (possibly several traits), covariables and cross-classified factors. Missing data coded as "NA" will be replaced by "0" if it is in a 'trait' column and the trait is binary, and by "-9999" otherwise.
 ##' @param file path to the text file to which x will be written
 ##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers
 ##' @param col.id column index of the individual identifiers in x
-##' @param col.trait column index of the trait in x
-##' @param binary.trait boolean indicating if the trait is binary or not
+##' @param col.traits column indices of traits in x
+##' @param binary.traits logical vector indicating if traits are binary or not (should be of the same length as col.traits)
 ##' @return nothing
 ##' @author Timothee Flutre
-writeDataForGs3 <- function(x, file, inds, col.id, col.trait, binary.trait=FALSE){
+##' @export
+writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits=FALSE){
   stopifnot(is.data.frame(x),
+            ncol(x) >= 2, # at least individual identifiers and trait values
             is.character(file),
             is.vector(inds),
             is.numeric(inds),
@@ -21,31 +23,41 @@ writeDataForGs3 <- function(x, file, inds, col.id, col.trait, binary.trait=FALSE
             col.id <= ncol(x),
             is.factor(x[,col.id]),
             all(levels(x[,col.id]) %in% names(inds)),
-            length(col.trait) == 1,
-            col.trait >= 1,
-            col.trait <= ncol(x),
-            ! is.factor(x[,col.trait]),
-            is.logical(binary.trait))
-  if(binary.trait)
-    stopifnot(all(x[,col.trait] %in% c(0,1,2)))
+            length(col.traits) >= 1,
+            length(col.traits) <= ncol(x) - 1,
+            all(col.traits >= 1),
+            all(col.traits <= ncol(x)),
+            all(! is.factor(x[,col.traits])),
+            ! col.id %in% col.traits,
+            all(is.logical(binary.traits)),
+            length(binary.traits) == length(col.traits))
+  if(any(binary.traits))
+    stopifnot(all(x[,col.traits] %in% c(0,1,2,NA)))
 
-  ## handle the individual identifiers for GS3
+  ## handle individual identifiers
   x[,col.id] <- as.character(x[,col.id])
   x[,col.id] <- setNames(object=inds[match(x[,col.id], names(inds))],
                          nm=NULL)
 
-  ## handle missing trait values for GS3
-  idx <- which(is.na(x[,col.trait]))
-  if(length(idx) > 0){
-    if(binary.trait){
-      x[idx, col.trait] <- 0
-    } else
-      x[idx, col.trait] <- -9999
+  ## handle missing values
+  for(c in 1:ncol(x)){
+    if(c == col.id)
+      next
+    idx <- which(is.na(x[,c]))
+    if(length(idx) > 0){
+      if(c %in% col.traits){
+        if(binary.traits[c]){
+          x[idx, c] <- 0
+        } else
+          x[idx, c] <- -9999
+      } else
+        x[idx, c] <- -9999
+    }
   }
 
-  ## handle factor levels for GS3
+  ## handle factor levels
   for(c in 1:ncol(x))
-    if(c != col.id & c != col.trait & is.factor(x[,c]))
+    if(c != col.id & ! c %in% col.traits & is.factor(x[,c]))
       levels(x[,c]) <- 1:nlevels(x[,c])
 
   write.table(x=x,
@@ -59,14 +71,15 @@ writeDataForGs3 <- function(x, file, inds, col.id, col.trait, binary.trait=FALSE
 ##' Write genotypes
 ##'
 ##' Write the genotype file for GS3.
-##' @param x matrix with SNP genotypes encoded as allele dose (i.e. 0/1/2 or NA), with individuals in rows and SNPs in columns. Row names are compulsory.
+##' @param x matrix with SNP genotypes encoded as allele dose (i.e. 0/1/2 or NA/5), with individuals in rows and SNPs in columns. Row names are compulsory. Missing data coded as "NA" will be replaced by "5". Missing data already coded as "5" won't be modified.
 ##' @param file path to the text file to which x will be written
 ##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 writeGenosForGs3 <- function(x, file, inds){
   stopifnot(is.matrix(x),
-            all(x %in% c(0,1,2)),
+            all(x %in% c(0,1,2,NA,5)),
             ! is.null(rownames(x)),
             is.vector(inds),
             is.numeric(inds),
@@ -123,6 +136,7 @@ writeGenosForGs3 <- function(x, file, inds){
 ##' @param blasso boolean indicating if the Bayesian lasso prior should be used or not
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @export
 writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
                               num.loci, method, simul="F",
                               niter=10000, burnin=2000, thin=10,
@@ -235,20 +249,52 @@ writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
 ##' @param stdouterr.file path to the text file to which the stdout and stderr will be written
 ##' @return return value (0 if success)
 ##' @author Timothee Flutre
+##' @export
 execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
   stopifnot(file.exists(config.file))
 
-  if(Sys.info()["sysname"] == "Linux"){
-    ret <- system2("gs3", args=c(config.file),
-                   stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE)
-  } else if(Sys.info()["sysname"] == "Windows"){
-    ret <- system2("gs3.exe", args=c(config.file),
-                   stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE,
-                   invisible=FALSE)
-  } else{
-    msg <- paste0("unknown operating system '", Sys.info()["sysname"], "'")
-    stop(msg)
+  exec.name <- "gs3"
+  inv <- TRUE
+  if(Sys.info()["sysname"] == "Windows"){
+    exec.name <- "gs3.exe"
+    inv <- FALSE
   }
 
+  ret <- system2(exec.name, args=c(config.file),
+                 stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE,
+                 invisible=inv)
+
   return(invisible(ret))
+}
+
+##' Load GS3 results
+##'
+##' Read the file containing the variance components' samples into a \code{\link[coda]{mcmc.list}} object.
+##' @param vcs.file path to the file containing the variance components' samples
+##' @return \code{\link[coda]{mcmc.list}}
+##' @author Timothee Flutre
+##' @examples
+##' \dontrun{vcs <- vcs2mcmc(vcs.file)
+##' summary(vcs)
+##' coda::effectiveSize(vcs)
+##' genos <- as.matrix(read.table(genos.file))
+##' afs <- colMeans(genos) / 2
+##' tmp <- cbind(as.matrix(vcs[[1]]), varA=vcs[[1]][,"vara"] * 2 * sum(afs * (1 - afs)))
+##' vcs[[1]] <- coda::as.mcmc(tmp)
+##' summary(vcs)}
+##' @export
+vcs2mcmc <- function(vcs.file){
+  if(! requireNamespace("coda", quietly=TRUE))
+    stop("Pkg coda needed for this function to work. Please install it.",
+         call.=FALSE)
+  stopifnot(is.character(vcs.file),
+            length(vcs.file) == 1,
+            file.exists(vcs.file))
+
+  d <- read.table(vcs.file, header=TRUE)
+  for(j in seq_along(d))
+    if(! is.numeric(d[[j]]))
+      d[[j]] <- NULL
+
+  return(coda::mcmc.list(coda::mcmc(d)))
 }

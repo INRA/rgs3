@@ -1,6 +1,6 @@
 ---
 title: "Introduction to rgs3"
-author: "Timothée Flutre"
+author: "Timothée Flutre (INRA)"
 date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
@@ -15,16 +15,21 @@ vignette: >
 ## Preamble
 
 The `rgs3` package can be downloaded from [GitHub](https://github.com/timflutre/rgs3).
-To install it, follow the indications in the `README` file.
-Once this is done, you can load it into R:
+To install it, we can follow the indications in the `README` file.
+Once this is done, we can load the package into R:
+
+```{r, echo=FALSE}
+if("package:rgs3" %in% search())
+  detach("package:rgs3", unload=TRUE)
+```
 
 ```{r load_pkg}
 library(rgs3)
 ```
 
-For the `rgs3` package to work successfully, the GS3 program should be already installed on your machine.
-It should be available in your [PATH](https://en.wikipedia.org/wiki/PATH_%28variable%29) named as `gs3` for Linux and `gs3.exe` for Windows.
-You can download GS3 from the [web page](http://snp.toulouse.inra.fr/~alegarra/) of Andrés Legarra (INRA Toulouse).
+For the `rgs3` package to work successfully, the GS3 program should be already installed.
+It should be available in our [PATH](https://en.wikipedia.org/wiki/PATH_%28variable%29), as `gs3.exe` for Windows and as `gs3` for others (such as GNU/Linux).
+The GS3 program is available for download at the [web page](http://snp.toulouse.inra.fr/~alegarra/) of Andrés Legarra (INRA).
 Note that this vignette requires a version as recent as January 6, 2016.
 
 
@@ -85,7 +90,7 @@ A data set was simulated to illustrate how the `rgs3` package works:
 
 1. SNP genotypes were simulated for $I$ individuals via the sequential coalescent with recombination model from [Staab et al (2015)](http://dx.doi.org/10.1093/bioinformatics/btu861);
 
-2. $P$ SNPs with a minor allele frequency above 0.01 were encoded as allele dose and gathered into a matrix $Z$, which was then used to estimate the $I \times I$ additive genomic relationships matrix $G$ using the first estimator from [VanRaden (2008)](http://dx.doi.org/10.3168/jds.2007-0980);
+2. $P$ SNPs with a minor allele frequency above 0.01 were encoded as allele dose and gathered into a matrix used to estimate the $I \times I$ additive relationships matrix $G$ using the first estimator from [VanRaden (2008)](http://dx.doi.org/10.3168/jds.2007-0980);
 
 3. finally, the following model was used to simulate $N$ phenotypes over $Q$ years, with $N = Q \times I$:
 
@@ -97,7 +102,7 @@ Moreover, the fitted model will be:
 
 $\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + \boldsymbol{e}$ where $\boldsymbol{a} \sim \mathcal{N}_P(\boldsymbol{0}, \sigma_a^2 \text{Id})$ and $\boldsymbol{e} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma_e^2 \text{Id})$
 
-To check the inference results, we will use the following approximation, $\sigma_g^2 = \sigma_a^2 \times 2 \sum_p f_p (1 - f_p)$, where $f_p$ is the minor allele frequency of the $p$-th SNP (see [Gianola et al, 2009](http://dx.doi.org/10.1534/genetics.109.103952)).
+To check the inference results, we will use the following approximation, $\sigma_g^2 = \sigma_a^2 \times 2 \sum_p f_p (1 - f_p)$, where $f_p$ is the allele frequency of the $p$-th SNP (see [Gianola et al, 2009](http://dx.doi.org/10.1534/genetics.109.103952)).
 
 
 ## Load the data into R
@@ -110,24 +115,24 @@ phenos <- read.table(phenos.file, header=TRUE)
 phenos$year <- as.factor(phenos$year)
 str(phenos)
 head(phenos)
-phenos[phenos$ind == levels(phenos$ind)[1],]
+phenos[phenos$geno == levels(phenos$geno)[1],]
 ```
 
 As can be seen above, the phenotype file contains `r ncol(phenos)` columns.
 The first column corresponds to a covariate indicating the year at which the trait was measured.
 This covariate has $Q=$ `r (Q <- nlevels(phenos$year))` levels.
-The second column corresponds to the $I=$ `r (I <- nlevels(phenos$ind))` individual identifiers.
+The second column corresponds to the $I=$ `r (I <- nlevels(phenos$geno))` individual identifiers.
 The third column corresponds to the $N=$ `r (N <- nrow(phenos))` trait measurements.
 
 A quick look at the data is always helpful:
 
 ```{r plot_phenos, fig.width=5}
 par(mar=c(4,4,2,1))
-boxplot(phenos$response ~ phenos$year, notch=TRUE, horizontal=TRUE,
+boxplot(phenos$response1 ~ phenos$year, notch=TRUE, horizontal=TRUE, las=1,
         main="Phenotypes", xlab="response", ylab="year")
 ```
 
-Here it shows at least one "year" effect, as well as substantial within-year variation coming from genetic and environmental sources.
+We can see at least a "year" effect, as well as substantial within-year variation likely coming from both genetic and environmental sources.
 The goal will be to quantify their respective contributions.
 
 Load the genotypes:
@@ -159,11 +164,14 @@ hist(mafs, breaks="FD", main="Minor allele frequencies",
 We can also have a quick look at the additive genomic relationships:
 
 ```{r plot_G}
+afs <- colMeans(genos) / 2
 M <- genos - 1
-Pmat <- matrix(rep(1,nrow(genos))) %*% (2 * (mafs - 0.5))
+Pmat <- matrix(rep(1,nrow(genos))) %*% (2 * (afs - 0.5))
 Z <- M - Pmat
-G <- tcrossprod(Z, Z) / (2 * sum(mafs * (1 - mafs)))
+G <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
 G[1:3,1:3]
+summary(diag(G)) # under HWE, average should be 1
+summary(G[upper.tri(G)]) # under HWE, average should be 0
 par(mar=c(1,1,2,1))
 image(t(G)[,nrow(G):1], axes=FALSE, main="G")
 ```
@@ -174,8 +182,8 @@ image(t(G)[,nrow(G):1], axes=FALSE, main="G")
 ```{r rrBLUP}
 if(require(rrBLUP)){
   st <- system.time(
-      fit.rrBLUP <- mixed.solve(y=phenos$response,
-                                Z=model.matrix(~ phenos$ind - 1),
+      fit.rrBLUP <- mixed.solve(y=phenos$response1,
+                                Z=model.matrix(~ phenos$geno - 1),
                                 K=G,
                                 X=model.matrix(~ phenos$year),
                                 method="REML", SE=TRUE, return.Hinv=TRUE))
@@ -193,8 +201,8 @@ The estimates are quite close from the "true" values (i.e. those used to simulat
 Encode the individual identifiers as consecutive numbers from $1$ to $I$:
 
 ```{r code_inds}
-inds <- setNames(object=1:nlevels(phenos$ind),
-                 nm=levels(phenos$ind))
+inds <- setNames(object=1:nlevels(phenos$geno),
+                 nm=levels(phenos$geno))
 head(inds)
 ```
 
@@ -202,8 +210,8 @@ Write the phenotype file in the GS3 format:
 
 ```{r write_phenos}
 phenos.file.gs3 <- paste0(getwd(), "/phenos_gs3.txt")
-writeDataForGs3(x=phenos, file=phenos.file.gs3,
-                inds=inds, col.id=2, col.trait=3)
+writeDataForGs3(x=phenos, file=phenos.file.gs3, inds=inds, col.id=2,
+                col.traits=3, binary.traits=FALSE)
 ```
 
 Write the genotype file in the GS3 format:
@@ -224,12 +232,15 @@ vcs.file <- paste0(getwd(), "/var_comp_samples.txt")
 sol.file <- paste0(getwd(), "/solutions.txt")
 (ptl <- data.frame(position=c(which(colnames(phenos) == "year"),
                               ncol(phenos) + 1),
-                              ## which(colnames(phenos) == "ind")),
+                              ## ncol(phenos) + 1),
+                              ## which(colnames(phenos) == "geno")),
                    type=c("cross",
                           "add_SNP"),
+                          ## "dom_SNP"),
                           ## "perm_diagonal"),
                    nlevels=c(Q,
                              0),
+                             ## 0),
                              ## I),
                    stringsAsFactors=FALSE))
 writeConfigForGs3(config.file=config.file,
@@ -244,14 +255,14 @@ writeConfigForGs3(config.file=config.file,
                   thin=10,
                   vcs.file=vcs.file,
                   sol.file=sol.file,
-                  twc=c(which(colnames(phenos) == "response"), 0),
+                  twc=c(which(colnames(phenos) == "response1"), 0),
                   num.eff=nrow(ptl),
                   ptl=ptl,
                   vc=data.frame(var=c("vara","vard","varg","varp","vare"),
                                 exp=c("2.52d-04","1.75d-06","3.56","2.15","0.19"),
                                 df=rep("-2", 5),
                                 stringsAsFactors=FALSE),
-                  rec.id=which(colnames(phenos) == "ind"),
+                  rec.id=which(colnames(phenos) == "geno"),
                   cont="F",
                   mod=rep("T", nrow(ptl)),
                   ap=c(1, 10),
@@ -283,6 +294,9 @@ stdouterr <- readLines(stdouterr.file)
 
 ## Assess inference on variance components
 
+If the [coda](https://cran.r-project.org/web/packages/coda/) package is installed, we can use the `vcs2mcmc` function from `rgs3` to read the output file from GS3 into an `mcmc.list` object.
+But we won't use this function in this vignette as `coda` may not be available.
+
 Load the variance components' samples:
 
 ```{r load_vcs}
@@ -290,7 +304,7 @@ vcs <- read.table(vcs.file, header=TRUE)
 str(vcs)
 ```
 
-Assess convergence, at least for some parameters:
+Assess convergence visually, at least for some parameters:
 
 ```{r vcs_conv, fig.width=7}
 par(mfrow=c(1,2), mar=c(4,4,2,1))
@@ -301,12 +315,14 @@ for(vc in c("vara","vare")){
        main=vc)
   abline(h=mean(vcs[,vc]), col="red")
   abline(v=101, lty=2)
-  legend("bottomright", legend="posterior mean", col="red", lty=1, bty="n")
+  legend(ifelse(vc == "vara", "bottomright", "topright"),
+         legend="posterior mean", col="red", lty=1, bty="n")
 }
 ```
 
-It looks like the chain converged (even though, to be more thorough, one should only declare convergence after checking it for all parameters).
-But, as indicated by the vertical, dotted line, we can increase a little bit more the burn-in:
+It looks like the chain converged, even though, to be more thorough, one should only declare convergence after checking it for all parameters.
+
+Moreover, as indicated by the vertical, dotted line, we can discard more samples at the beginning:
 
 ```{r burnin}
 idx.tokeep <- 101:nrow(vcs)
@@ -317,14 +333,16 @@ Look at posterior mean and variance of parameters of interest:
 ```{r posterior_vcs}
 message(paste0("posterior mean of sigma.e2 = ",
                mean(vcs[idx.tokeep, "vare"])))
-message(paste0("posterior variance of sigma.e2 = ",
-               var(vcs[idx.tokeep, "vare"])))
+message(paste0("posterior sd of sigma.e2 = ",
+               sd(vcs[idx.tokeep, "vare"])))
 message(paste0("posterior mean of sigma.a2 = ",
                mean(vcs[idx.tokeep, "vara"])))
-message(paste0("posterior variance of sigma.a2 = ",
-               var(vcs[idx.tokeep, "vara"])))
-message(paste0("approximated estimate of sigma.g2 = ",
-               mean(vcs[idx.tokeep, "vara"]) * 2 * sum(mafs * (1 - mafs))))
+message(paste0("posterior sd of sigma.a2 = ",
+               sd(vcs[idx.tokeep, "vara"])))
+message(paste0("posterior mean of '2varapqpi' = ",
+               mean(vcs[idx.tokeep, "X2varapqpi"])))
+message(paste0("posterior sd of '2varapqpi' = ",
+               sd(vcs[idx.tokeep, "X2varapqpi"])))
 ```
 
 The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes).
