@@ -36,8 +36,8 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
 
   ## handle individual identifiers
   x[,col.id] <- as.character(x[,col.id])
-  x[,col.id] <- setNames(object=inds[match(x[,col.id], names(inds))],
-                         nm=NULL)
+  x[,col.id] <- stats::setNames(object=inds[match(x[,col.id], names(inds))],
+                                nm=NULL)
 
   ## handle missing values
   for(c in 1:ncol(x)){
@@ -60,12 +60,12 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
     if(c != col.id & ! c %in% col.traits & is.factor(x[,c]))
       levels(x[,c]) <- 1:nlevels(x[,c])
 
-  write.table(x=x,
-              file=file,
-              quote=FALSE,
-              sep=" ",
-              row.names=FALSE,
-              col.names=FALSE)
+  utils::write.table(x=x,
+                     file=file,
+                     quote=FALSE,
+                     sep=" ",
+                     row.names=FALSE,
+                     col.names=FALSE)
 }
 
 ##' Write genotypes
@@ -88,8 +88,8 @@ writeGenosForGs3 <- function(x, file, inds){
             all(rownames(x) %in% names(inds)))
 
   ## handle the individual identifiers for GS3
-  rownames(x) <- setNames(object=inds[match(rownames(x), names(inds))],
-                          nm=NULL)
+  rownames(x) <- stats::setNames(object=inds[match(rownames(x), names(inds))],
+                                 nm=NULL)
 
   ## handle missing genotypes for GS3
   x[is.na(x)] <- 5
@@ -98,12 +98,12 @@ writeGenosForGs3 <- function(x, file, inds){
   tmp <- cbind(sprintf("% 47s", rownames(x)),
                t(t(apply(x, 1, paste0, collapse=""))))
 
-  write.table(x=tmp,
-              file=file,
-              quote=FALSE,
-              sep=" ",
-              row.names=FALSE,
-              col.names=FALSE)
+  utils::write.table(x=tmp,
+                     file=file,
+                     quote=FALSE,
+                     sep=" ",
+                     row.names=FALSE,
+                     col.names=FALSE)
 }
 
 ##' Write configuration
@@ -291,7 +291,7 @@ vcs2mcmc <- function(vcs.file){
             length(vcs.file) == 1,
             file.exists(vcs.file))
 
-  d <- read.table(vcs.file, header=TRUE)
+  d <- utils::read.table(vcs.file, header=TRUE)
   for(j in seq_along(d))
     if(! is.numeric(d[[j]]))
       d[[j]] <- NULL
