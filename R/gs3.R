@@ -245,6 +245,7 @@ writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
 ##' Execute GS3
 ##'
 ##' Execute GS3 via a system call.
+##' The expected executable name in the PATH is \code{gs3.exe} on Windows, \code{gs3} otherwise.
 ##' @param config.file path to the text file containing the configuration for GS3
 ##' @param stdouterr.file path to the text file to which the stdout and stderr will be written
 ##' @return return value (0 if success)
@@ -253,16 +254,13 @@ writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
 execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
   stopifnot(file.exists(config.file))
 
-  exec.name <- "gs3"
-  inv <- TRUE
   if(Sys.info()["sysname"] == "Windows"){
-    exec.name <- "gs3.exe"
-    inv <- FALSE
-  }
-
-  ret <- system2(exec.name, args=c(config.file),
-                 stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE,
-                 invisible=inv)
+    ret <- system2(command="gs3.exe", args=c(config.file),
+                   stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE,
+                   invisible=FALSE)
+  } else
+    ret <- system2(command="gs3", args=c(config.file),
+                   stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE)
 
   return(invisible(ret))
 }

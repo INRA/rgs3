@@ -16,6 +16,7 @@ return value (0 if success)
 }
 \description{
 Execute GS3 via a system call.
+The expected executable name in the PATH is \code{gs3.exe} on Windows, \code{gs3} otherwise.
 }
 \author{
 Timothee Flutre
