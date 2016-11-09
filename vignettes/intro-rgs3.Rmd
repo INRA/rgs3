@@ -5,14 +5,33 @@ date: "`r Sys.Date()`"
 output:
   rmarkdown::html_vignette:
     toc: true
+    number_sections: TRUE
+  html_document:
+    toc: true
+    toc_float: true
+    number_sections: TRUE
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: TRUE
 vignette: >
   %\VignetteIndexEntry{Introduction to rgs3}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
+<!--
+setwd("~/src/rgs3/vignettes/")
 
-## Preamble
+library(devtools)
+build_vignettes()
+
+library(rmarkdown)
+render("intro-rgs3.Rmd", "html_document")
+-->
+
+
+# Preamble
 
 The `rgs3` package can be downloaded from [GitHub](https://github.com/timflutre/rgs3).
 To install it, we can follow the indications in the `README` file.
@@ -25,6 +44,7 @@ if("package:rgs3" %in% search())
 
 ```{r load_pkg}
 library(rgs3)
+packageVersion("rgs3")
 ```
 
 For the `rgs3` package to work successfully, the GS3 program should be already installed.
@@ -32,8 +52,13 @@ It should be available in our [PATH](https://en.wikipedia.org/wiki/PATH_%28varia
 The GS3 program is available for download at the [web page](http://snp.toulouse.inra.fr/~alegarra/) of Andrés Legarra (INRA).
 Note that this vignette requires a version as recent as January 6, 2016.
 
+This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
+```{r time_0}
+t0 <- proc.time()
+```
 
-## Model
+
+# Model
 
 To know exactly what the GS3 program can do, it is strongly advised to also read the GS3 [manual](http://snp.toulouse.inra.fr/~alegarra/manualgs3_last.pdf) as this introduction doesn't show all possible ways to use it.
 
@@ -84,7 +109,7 @@ Estimate of the "generalized" genomic breeding value of individual $i$:
 $EBV_i = \hat{g}_i + \boldsymbol{z}_i \hat{\boldsymbol{a}} + \boldsymbol{w}_i \hat{\boldsymbol{d}}$
 
 
-## Simulation
+# Simulation
 
 A data set was simulated to illustrate how the `rgs3` package works:
 
@@ -105,7 +130,7 @@ $\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + \boldsymbol{e}$ where $\
 To check the inference results, we will use the following approximation, $\sigma_g^2 = \sigma_a^2 \times 2 \sum_p f_p (1 - f_p)$, where $f_p$ is the allele frequency of the $p$-th SNP (see [Gianola et al, 2009](http://dx.doi.org/10.1534/genetics.109.103952)).
 
 
-## Load the data into R
+# Load the data into R
 
 Load the phenotypes:
 
@@ -116,13 +141,16 @@ phenos$year <- as.factor(phenos$year)
 str(phenos)
 head(phenos)
 phenos[phenos$geno == levels(phenos$geno)[1],]
+(I <- nlevels(phenos$geno))
+(Q <- nlevels(phenos$year))
+(N <- nrow(phenos))
 ```
 
 As can be seen above, the phenotype file contains `r ncol(phenos)` columns.
 The first column corresponds to a covariate indicating the year at which the trait was measured.
-This covariate has $Q=$ `r (Q <- nlevels(phenos$year))` levels.
-The second column corresponds to the $I=$ `r (I <- nlevels(phenos$geno))` individual identifiers.
-The third column corresponds to the $N=$ `r (N <- nrow(phenos))` trait measurements.
+This covariate has $Q=$ `r Q` levels.
+The second column corresponds to the $I=$ `r I` individual identifiers.
+The third column corresponds to the $N=$ `r N` trait measurements.
 
 A quick look at the data is always helpful:
 
@@ -142,20 +170,21 @@ genos.file <- system.file("extdata", "genos_mat.txt.gz", package="rgs3")
 genos <- as.matrix(read.table(genos.file))
 dim(genos)
 genos[1:3,1:6]
+(P <- ncol(genos))
 ```
 
-As can be seen above, the genotype file contains the matrix of genotypes for each individual at the $P=$ `r (P <- ncol(genos))` SNPs, encoded as allele dose (0/1/2).
+As can be seen above, the genotype file contains the matrix of genotypes for each individual at the $P=$ `r P` SNPs, encoded as allele dose (0/1/2).
 Individuals are in rows and SNPs in columns.
 
 We can have a quick look at minor allele frequencies:
 
 ```{r plot_maf, fig.width=5}
-par(mar=c(2,4,2,1))
 mafs <- apply(genos, 2, function(x){
   x <- x[complete.cases(x)]
   tmp <- sum(x) / (2 * length(x))
   ifelse(tmp <= 0.5, tmp, 1 - tmp)
 })
+par(mar=c(2,4,2,1))
 hist(mafs, breaks="FD", main="Minor allele frequencies",
      xlab="", ylab="number of SNPs",
      col="grey", border="white", xlim=c(0, 0.5), las=1)
@@ -177,7 +206,7 @@ image(t(G)[,nrow(G):1], axes=FALSE, main="G")
 ```
 
 
-## Quick check with another package
+# Quick check with another package
 
 ```{r rrBLUP}
 if(require(rrBLUP)){
@@ -196,7 +225,7 @@ if(require(rrBLUP)){
 The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes).
 
 
-## Write the data into files formatted for GS3
+# Write the data into files formatted for GS3
 
 Encode the individual identifiers as consecutive numbers from $1$ to $I$:
 
@@ -222,7 +251,7 @@ writeGenosForGs3(x=genos, file=genos.file.gs3, inds=inds)
 ```
 
 
-## Estimate parameters with GS3
+# Estimate parameters with GS3
 
 Write the configuration file for GS3:
 
@@ -282,7 +311,7 @@ Execute GS3:
 ```{r exec_gs3}
 stdouterr.file <- paste0(getwd(), "/intro_stdouterr_gs3.txt")
 system.time(retVal <- execGs3(config.file, stdouterr.file))
-message(paste0("return value = ", retVal))
+message(paste0("return value = ", retVal)) # "0" means "success"
 ```
 
 The GS3 program outputs some messages (too long to display here):
@@ -292,7 +321,7 @@ stdouterr <- readLines(stdouterr.file)
 ```
 
 
-## Assess inference on variance components
+# Assess inference on variance components
 
 If the [coda](https://cran.r-project.org/web/packages/coda/) package is installed, we can use the `vcs2mcmc` function from `rgs3` to read the output file from GS3 into an `mcmc.list` object.
 But we won't use this function in this vignette as `coda` may not be available.
@@ -348,13 +377,58 @@ message(paste0("posterior sd of '2varapqpi' = ",
 The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes).
 
 
-## Acknowledgments
+# Retrieve the genotypic values
+
+The various estimated genotypic values are saved in the file `<config.file>_EBVs`:
+```{r load_EBVs}
+ebvs <- read.table(file=paste0(config.file, "_EBVs"), header=TRUE)
+ebvs <- ebvs[! duplicated(ebvs$id),]
+str(ebvs)
+rownames(ebvs) <- names(inds)
+head(ebvs)
+```
+
+* The first column, `id`, corresponds to the identifiers of the individuals defined in the vector `inds` above.
+
+* The second column, `g_aSNP`, corresponds to the sum of the posterior means of the additive effects of the SNP genotypes, $\sum_p \hat{a}_p = \boldsymbol{z}_i \hat{\boldsymbol{a}}$.
+
+* The third column, `g_dSNP`, corresponds to the sum of the posterior means of the dominant effects of the SNP genotypes, $\sum_p \hat{d}_p = \boldsymbol{w}_i \hat{\boldsymbol{d}}$.
+
+* The fourth column, `poly_anim`, corresponds to the posterior mean of the polygenic infinitesimal effect (pedigree-based), $\hat{g}_i$.
+
+* The last column, `g_overall`, corresponds to the estimated "generalized" genomic breeding value, that is, the sum of the three previous columns.
+
+We can have a quick look at the distribution of these gEBVs:
+```{r plot_gEBVs, fig.width=5}
+par(mar=c(2,4,2,1))
+hist(ebvs$g_overall, breaks="FD",
+     main="gEBVs",
+     xlab="", ylab="number of individuals",
+     col="grey", border="white", las=1)
+```
+
+
+# Retrieve other estimates
+
+These are found in the file specified via the variable `sol.file` (see above):
+```{r load_other-estim}
+sols <- read.table(file=sol.file, header=TRUE)
+str(sols)
+```
+
+* The first `r Q` rows correspond to the `r Q` fixed effects.
+
+* The remaining `r nrow(sols)-Q` rows correspond to the additive effects of the `r P` SNP genotypes.
+
+
+# Acknowledgments
 
 * Andrés Legarra
 
 
-## Appendix
+# Appendix
 
 ```{r info}
+t1 <- proc.time(); t1 - t0
 print(sessionInfo(), locale=FALSE)
 ```
