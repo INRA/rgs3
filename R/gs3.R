@@ -32,7 +32,7 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
             all(is.logical(binary.traits)),
             length(binary.traits) == length(col.traits))
   if(any(binary.traits))
-    stopifnot(all(x[,col.traits] %in% c(0,1,2,NA)))
+    stopifnot(all(x[,col.traits[which(binary.traits)]] %in% c(0,1,2,NA)))
 
   ## handle individual identifiers
   x[,col.id] <- as.character(x[,col.id])
@@ -46,7 +46,7 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
     idx <- which(is.na(x[,c]))
     if(length(idx) > 0){
       if(c %in% col.traits){
-        if(binary.traits[c]){
+        if(binary.traits[which(c == col.traits)]){
           x[idx, c] <- 0
         } else
           x[idx, c] <- -9999
