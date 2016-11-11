@@ -28,4 +28,7 @@ summary(vcs)}
 \author{
 Timothee Flutre
 }
+\seealso{
+\code{link{execGs3}}
+}
 

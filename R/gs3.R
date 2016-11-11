@@ -1,43 +1,69 @@
+##' Check data
+##'
+##' Return TRUE if the inputs are properly formatted and consistent.
+##' @param x data.frame
+##' @param inds vector
+##' @param col.id numeric
+##' @param col.traits numeric vector
+##' @param binary.traits logical vector
+##' @return logical
+##' @author Timothee Flutre
+##' @export
+isValidData <- function(x, inds, col.id, col.traits, binary.traits){
+  all(is.data.frame(x),
+      ncol(x) >= 2, # at least individual identifiers and trait values
+      ifelse(! is.null(inds),
+             all(is.vector(inds),
+                 is.numeric(inds),
+                 ! is.null(names(inds)),
+                 all(inds == 1:length(inds))),
+             TRUE),
+      length(col.id) == 1,
+      col.id >= 1,
+      col.id <= ncol(x),
+      is.factor(x[,col.id]),
+      ifelse(! is.null(inds),
+             all(levels(x[,col.id]) %in% names(inds)),
+             TRUE),
+      length(col.traits) >= 1,
+      length(col.traits) <= ncol(x) - 1,
+      all(col.traits >= 1),
+      all(col.traits <= ncol(x)),
+      all(! is.factor(x[,col.traits])),
+      ! col.id %in% col.traits,
+      all(is.logical(binary.traits)),
+      length(binary.traits) == length(col.traits),
+      ifelse(any(binary.traits),
+             all(x[,col.traits[which(binary.traits)]] %in% c(0,1,2,NA)),
+             TRUE))
+}
+
 ##' Write data
 ##'
 ##' Write the data file for GS3.
 ##' @param x data.frame containing individual identifiers (names of parameter "inds"), trait values (possibly several traits), covariables and cross-classified factors. Missing data coded as "NA" will be replaced by "0" if it is in a 'trait' column and the trait is binary, and by "-9999" otherwise.
 ##' @param file path to the text file to which x will be written
-##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers
+##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers; this very same vector should also be used with \code{\link{writeGenosForGs3}}
 ##' @param col.id column index of the individual identifiers in x
 ##' @param col.traits column indices of traits in x
 ##' @param binary.traits logical vector indicating if traits are binary or not (should be of the same length as col.traits)
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{writeGenosForGs3}}, \code{\link{writeConfigForGs3}}
 ##' @export
 writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits=FALSE){
-  stopifnot(is.data.frame(x),
-            ncol(x) >= 2, # at least individual identifiers and trait values
-            is.character(file),
-            is.vector(inds),
-            is.numeric(inds),
-            ! is.null(names(inds)),
-            all(inds == 1:length(inds)),
-            length(col.id) == 1,
-            col.id >= 1,
-            col.id <= ncol(x),
-            is.factor(x[,col.id]),
-            all(levels(x[,col.id]) %in% names(inds)),
-            length(col.traits) >= 1,
-            length(col.traits) <= ncol(x) - 1,
-            all(col.traits >= 1),
-            all(col.traits <= ncol(x)),
-            all(! is.factor(x[,col.traits])),
-            ! col.id %in% col.traits,
-            all(is.logical(binary.traits)),
-            length(binary.traits) == length(col.traits))
-  if(any(binary.traits))
-    stopifnot(all(x[,col.traits[which(binary.traits)]] %in% c(0,1,2,NA)))
+  stopifnot(isValidData(x, inds, col.id, col.traits, binary.traits),
+            is.character(file))
 
-  ## handle individual identifiers
+  ## handle factor levels
+  x <- droplevels(x)
+  for(c in 1:ncol(x))
+    if(c != col.id & ! c %in% col.traits & is.factor(x[,c]))
+      levels(x[,c]) <- 1:nlevels(x[,c])
+
+  ## handle genotype identifiers
   x[,col.id] <- as.character(x[,col.id])
-  x[,col.id] <- stats::setNames(object=inds[match(x[,col.id], names(inds))],
-                                nm=NULL)
+  x[,col.id] <- inds[match(x[,col.id], names(inds))]
 
   ## handle missing values
   for(c in 1:ncol(x)){
@@ -55,11 +81,6 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
     }
   }
 
-  ## handle factor levels
-  for(c in 1:ncol(x))
-    if(c != col.id & ! c %in% col.traits & is.factor(x[,c]))
-      levels(x[,c]) <- 1:nlevels(x[,c])
-
   utils::write.table(x=x,
                      file=file,
                      quote=FALSE,
@@ -68,30 +89,45 @@ writeDataForGs3 <- function(x, file, inds, col.id=1, col.traits=2, binary.traits
                      col.names=FALSE)
 }
 
+##' Check genotypes
+##'
+##' Return TRUE if the input corresponds to a properly-formatted genotype matrix.
+##' @param x matrix with SNP genotypes
+##' @param inds vector
+##' @return logical
+##' @author Timothee Flutre
+##' @export
+isValidGenos <- function(x, inds){
+  all(is.matrix(x),
+      all(x %in% c(0,1,2,NA,5)),
+      ! is.null(rownames(x)),
+      ifelse(! is.null(inds),
+             all(is.vector(inds),
+                 is.numeric(inds),
+                 ! is.null(names(inds)),
+                 all(inds == 1:length(inds)),
+                 all(names(inds) %in% rownames(x))),
+             TRUE))
+}
+
 ##' Write genotypes
 ##'
 ##' Write the genotype file for GS3.
 ##' @param x matrix with SNP genotypes encoded as allele dose (i.e. 0/1/2 or NA/5), with individuals in rows and SNPs in columns. Row names are compulsory. Missing data coded as "NA" will be replaced by "5". Missing data already coded as "5" won't be modified.
 ##' @param file path to the text file to which x will be written
-##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers
+##' @param inds named vector with values from 1 to I and names the corresponding individual identifiers; this very same vector should also be used with \code{\link{writeDataForGs3}}
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{writeDataForGs3}}, \code{\link{writeConfigForGs3}}
 ##' @export
 writeGenosForGs3 <- function(x, file, inds){
-  stopifnot(is.matrix(x),
-            all(x %in% c(0,1,2,NA,5)),
-            ! is.null(rownames(x)),
-            is.vector(inds),
-            is.numeric(inds),
-            ! is.null(names(inds)),
-            all(inds == 1:length(inds)),
-            all(rownames(x) %in% names(inds)))
+  stopifnot(isValidGenos(x, inds))
 
-  ## handle the individual identifiers for GS3
-  rownames(x) <- stats::setNames(object=inds[match(rownames(x), names(inds))],
-                                 nm=NULL)
+  ## handle genotype identifiers
+  x <- x[names(inds),]
+  rownames(x) <- inds[match(rownames(x), names(inds))]
 
-  ## handle missing genotypes for GS3
+  ## handle missing values
   x[is.na(x)] <- 5
 
   ## reformat (a bit slow)
@@ -106,80 +142,158 @@ writeGenosForGs3 <- function(x, file, inds){
                      col.names=FALSE)
 }
 
+##' Default configuration
+##'
+##' Return a list corresponding to a default configuration as used in the vignette.
+##' @param nb.snps number of SNPs
+##' @param method BLUP/MCMCBLUP/VCE/PREDICT
+##' @param ptl data.frame indicating, for each effect, its position in the data file, its type, and its number of levels
+##' @param twc vector
+##' @param rec.id numeric
+##' @return list
+##' @author Timothee Flutre
+##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{isValidConfig}}
+##' @export
+getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
+                             rec.id=NA){
+  if(! is.na(nb.snps))
+    stopifnot(is.numeric(nb.snps),
+              length(nb.snps) == 1,
+              nb.snps > 0)
+  if(! is.null(ptl)){
+    stopifnot(is.data.frame(ptl),
+              ncol(ptl) == 3,
+              all(colnames(ptl) %in% c("position", "type", "nlevels")),
+              all(ptl$type %in% c("cross", "cov", "add_SNP", "dom_SNP",
+                                  "add_animal", "perm_diagonal")))
+  } else
+    ptl <- data.frame(position=NA, type=NA, nlevels=NA)
+  if(! is.na(rec.id))
+    stopifnot(is.numeric(rec.id),
+              length(rec.id) == 1,
+              rec.id > 0)
+
+  config <- list(num.loci=nb.snps,
+                 method=method,
+                 simul="F",
+                 niter=10000,
+                 burnin=2000,
+                 thin=10,
+                 conv.crit="1d-8",
+                 correct=1000,
+                 vcs.file="var.txt",
+                 sol.file="sol.txt",
+                 twc=twc,
+                 num.eff=nrow(ptl),
+                 ptl=ptl,
+                 vc=data.frame(var=c("vara", "vard", "varg", "varp", "vare"),
+                               exp=c("2.52d-04","1.75d-06","3.56","2.15","0.19"),
+                               df=rep("-2", 5),
+                               stringsAsFactors=FALSE),
+                 rec.id=rec.id,
+                 cont="F",
+                 mod=rep("T", nrow(ptl)),
+                 ap=c(1,10),
+                 dp=c(1,1),
+                 use.mix="F",
+                 blasso=FALSE)
+
+  return(config)
+}
+
+##' Check configuration
+##'
+##'
+##' @param config list containing the configuration for GS3
+##' @return logical
+##' @author Timothee Flutre
+##' @seealso \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}
+##' @export
+isValidConfig <- function(config){
+  if(is.list(config)){
+    if(all(c("num.loci", "method", "simul", "niter", "burnin", "thin",
+             "conv.crit", "correct", "vcs.file", "sol.file", "twc", "num.eff",
+             "ptl", "vc", "rec.id", "cont", "mod", "ap", "dp", "use.mix",
+             "blasso") %in% names(config))){
+      all(config$method %in% c("BLUP", "MCMCBLUP", "VCE", "PREDICT"),
+          is.vector(config$twc),
+          length(config$twc) == 2,
+          is.data.frame(config$ptl),
+          ncol(config$ptl) == 3,
+          all(colnames(config$ptl) %in% c("position", "type", "nlevels")),
+          all(config$ptl$type %in% c("cross", "cov", "add_SNP", "dom_SNP",
+                                     "add_animal", "perm_diagonal")),
+          nrow(config$ptl) == config$num.eff,
+          is.vector(config$mod),
+          length(config$mod) == config$num.eff,
+          all(config$mod %in% c("T", "F")),
+          is.data.frame(config$vc),
+          ncol(config$vc) == 3,
+          all(colnames(config$vc) %in% c("var", "exp", "df")),
+          is.vector(config$ap),
+          length(config$ap) == 2,
+          is.vector(config$dp),
+          length(config$dp) == 2,
+          is.character(config$use.mix),
+          length(config$use.mix) == 1,
+          config$use.mix %in% c("T", "F"),
+          is.logical(config$blasso),
+          length(config$blasso) == 1,
+          ifelse(config$blasso,
+                 all(config$method == "VCE", config$use.mix == "F"),
+                 TRUE)
+          )
+    }
+  } else
+    FALSE
+}
+
 ##' Write configuration
 ##'
 ##' Write the configuration file for GS3.
-##' @param config.file path to the text file to which the configuration for GS3 will be written
+##' @param config list containing the configuration for GS3 via the following components:
+##' \describe{
+##'   \item{num.loci}{number of loci}
+##'   \item{method}{BLUP/MCMCBLUP/VCE/PREDICT}
+##'   \item{simul}{one-letter character indicating if simulations should be performed (T) or not (F)}
+##'   \item{niter}{number of iterations for the Gibbs sampler}
+##'   \item{burnin}{burn-in for the Gibbs sampler}
+##'   \item{thin}{thinning for the Gibbs sampler}
+##'   \item{conv.crit}{convergence criterion (meaningful if BLUP)}
+##'   \item{correct}{correction (to avoid numerical problems)}
+##'   \item{vcs.file}{path to the text file to which the variance component samples will be written}
+##'   \item{sol.file}{path to the text file to which the solutions will be written}
+##'   \item{twc}{2-element vector which first element corresponds to the column index of the trait values in the data file, and the second to the column index of the weights in the data file (use 0 if no weight)}
+##'   \item{num.eff}{number of effects}
+##'   \item{ptl}{3-column data.frame indicating, for each covariable/factor, its position (column) in the data file, type of effect and number of levels}
+##'   \item{vc}{3-column data.frame indicating, for each variance component, its expected value and degrees of freedom}
+##'   \item{rec.id}{1-element vector indicating the column in the data file corresponding to the genotype identifiers}
+##'   \item{cont}{vector with T or F indicating if the MCMC run is a continuation of a previous, interrupted one}
+##'   \item{mod}{vector with T or F for each covariable/factor indicating if it has to be included or not in the model}
+##'   \item{ap}{prior proportions of the BayesCPi mixture}
+##'   \item{dp}{prior proportions of the BayesCPi mixture}
+##'   \item{use.mix}{one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)}
+##'   \item{blasso}{boolean indicating if the Bayesian lasso prior should be used or not}
+##' }
 ##' @param data.file path to the text file with the data
 ##' @param ped.file path to the text file with the pedigree
 ##' @param genos.file path to the text file with the genotypes
-##' @param num.loci number of loci
-##' @param method BLUP/MCMCBLUP/VCE/PREDICT
-##' @param simul one-letter character indicating if simulations should be performed (T) or not (F)
-##' @param niter number of iterations for the Gibbs sampler
-##' @param burnin burn-in for the Gibbs sampler
-##' @param thin thinning for the Gibbs sampler
-##' @param conv.crit convergence criterion (meaningful if BLUP)
-##' @param correct correction (to avoid numerical problems)
-##' @param vcs.file path to the text file to which the variance component samples will be written
-##' @param sol.file path to the text file to which the solutions will be written
-##' @param twc 2-element vector which first element corresponds to the column index of the trait values in the data file, and the second to the column index of the weights in the data file (use 0 if no weight)
-##' @param num.eff number of effects
-##' @param ptl 3-column data.frame indicating, for each covariable/factor, the position in the data file, type of effect and number of levels
-##' @param vc 3-column data.frame indicating, for each variance component, the expected value and degrees of freedom
-##' @param rec.id 1-element vector with a unique number for each record. Used  to  trace  the  records  across  the  cross-validation process.
-##' @param cont vector with T or F indicating if the MCMC run is a continuation of a previous, interrupted one.
-##' @param mod vector with T or F for each covariable/factor indicating if it has to be included or not in the model
-##' @param ap prior proportions of the BayesCPi mixture
-##' @param dp prior proportions of the BayesCPi mixture
-##' @param use.mix one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)
-##' @param blasso boolean indicating if the Bayesian lasso prior should be used or not
+##' @param config.file path to the text file to which the configuration for GS3 will be written
 ##' @return nothing
 ##' @author Timothee Flutre
+##' @seealso \code{\link{getDefaultConfig}}, \code{\link{execGs3}}
 ##' @export
-writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
-                              num.loci, method, simul="F",
-                              niter=10000, burnin=2000, thin=10,
-                              conv.crit="1d-8", correct=1000,
-                              vcs.file="var.txt", sol.file="sol.txt",
-                              twc, num.eff, ptl,
-                              vc=data.frame(var=c("vara","vard","varg","varp","vare"),
-                                            exp=c("2.52d-04","1.75d-06","3.56","2.15","0.19"),
-                                            df=rep("-2", 5),
-                                            stringsAsFactors=FALSE),
-                              rec.id, cont="F", mod,
-                              ap=c(1,10), dp=c(1,1), use.mix="F",
-                              blasso=FALSE){
-  stopifnot(file.exists(data.file),
-            file.exists(genos.file))
+writeConfigForGs3 <- function(config,
+                              data.file,
+                              ped.file=NULL,
+                              genos.file=NULL,
+                              config.file){
+  stopifnot(isValidConfig(config),
+            file.exists(data.file))
   if(! is.null(ped.file))
     stopifnot(file.exists(ped.file))
-  stopifnot(method %in% c("BLUP", "MCMCBLUP", "VCE", "PREDICT"),
-            is.vector(twc),
-            length(twc) == 2,
-            is.data.frame(ptl),
-            ncol(ptl) == 3,
-            all(colnames(ptl) %in% c("position", "type", "nlevels")),
-            all(ptl$type %in% c("cross", "cov", "add_SNP", "dom_SNP", "add_animal", "perm_diagonal")),
-            nrow(ptl) == num.eff,
-            is.vector(mod),
-            length(mod) == num.eff,
-            all(mod %in% c("T", "F")),
-            is.data.frame(vc),
-            ncol(vc) == 3,
-            all(colnames(vc) %in% c("var", "exp", "df")),
-            is.vector(ap),
-            length(ap) == 2,
-            is.vector(dp),
-            length(dp) == 2,
-            is.character(use.mix),
-            length(use.mix) == 1,
-            use.mix %in% c("T", "F"),
-            is.logical(blasso),
-            length(blasso) == 1)
-  if(blasso)
-    stopifnot(method == "VCE",
-              use.mix == "F")
+  if(! is.null(genos.file))
+    stopifnot(file.exists(genos.file))
 
   txt <- paste0("DATAFILE",
                 "\n", data.file)
@@ -192,50 +306,51 @@ writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
   txt <- paste0(txt, "\nGENOTYPE FILE",
                 "\n", genos.file)
   txt <- paste0(txt, "\nNUMBER OF LOCI (might be 0)",
-                "\n", num.loci)
+                "\n", config$num.loci)
   txt <- paste0(txt, "\nMETHOD (BLUP/MCMCBLUP/VCE/PREDICT)",
-                "\n", method)
+                "\n", config$method)
   txt <- paste0(txt, "\nSIMULATION",
-                "\n", simul)
+                "\n", config$simul)
   txt <- paste0(txt, "\nGIBBS SAMPLING PARAMETERS")
   txt <- paste0(txt, "\nNITER",
-                "\n", niter)
+                "\n", config$niter)
   txt <- paste0(txt, "\nBURNIN",
-                "\n", burnin)
+                "\n", config$burnin)
   txt <- paste0(txt, "\nTHIN",
-                "\n", thin)
+                "\n", config$thin)
   txt <- paste0(txt, "\nCONV_CRIT (MEANINGFUL IF BLUP)",
-                "\n", conv.crit)
+                "\n", config$conv.crit)
   txt <- paste0(txt, "\nCORRECTION (to avoid numerical problems)",
-                "\n", correct)
+                "\n", config$correct)
   txt <- paste0(txt, "\nVARIANCE COMPONENTS SAMPLES",
-                "\n", vcs.file)
+                "\n", config$vcs.file)
   txt <- paste0(txt, "\nSOLUTION FILE",
-                "\n", sol.file)
+                "\n", config$sol.file)
   txt <- paste0(txt, "\nTRAIT AND WEIGHT COLUMNS",
-                "\n", paste0(twc, collapse=" "))
+                "\n", paste0(config$twc, collapse=" "))
   txt <- paste0(txt, "\nNUMBER OF EFFECTS",
-                "\n", num.eff)
+                "\n", config$num.eff)
   txt <- paste0(txt, "\nPOSITION IN DATA FILE TYPE OF EFFECT  NUMBER OF LEVELS")
-  for(i in 1:nrow(ptl))
-    txt <- paste0(txt, "\n", ptl$position[i], " ", ptl$type[i], " ", ptl$nlevels[i])
+  for(i in 1:nrow(config$ptl))
+    txt <- paste0(txt, "\n", config$ptl$position[i], " ", config$ptl$type[i],
+                  " ", config$ptl$nlevels[i])
   txt <- paste0(txt, "\nVARIANCE COMPONENTS (fixed for any BLUP, starting values for VCE)")
-  for(i in 1:nrow(vc))
-    txt <- paste0(txt, "\n", vc$var[i],
-                  "\n", vc$exp[i], " ", vc$df[i])
+  for(i in 1:nrow(config$vc))
+    txt <- paste0(txt, "\n", config$vc$var[i],
+                  "\n", config$vc$exp[i], " ", config$vc$df[i])
   txt <- paste0(txt, "\nRECORD ID",
-                "\n", rec.id)
+                "\n", config$rec.id)
   txt <- paste0(txt, "\nCONTINUATION (T/F)",
-                "\n", cont)
+                "\n", config$cont)
   txt <- paste0(txt, "\nMODEL (T/F for each effect)",
-                "\n", paste0(mod, collapse=" "))
+                "\n", paste0(config$mod, collapse=" "))
   txt <- paste0(txt, "\nA PRIORI a",
-                "\n", paste0(ap, collapse=" "))
+                "\n", paste0(config$ap, collapse=" "))
   txt <- paste0(txt, "\na PRIORI D",
-                "\n", paste0(dp, collapse=" "))
+                "\n", paste0(config$dp, collapse=" "))
   txt <- paste0(txt, "\nUSE MIXTURE",
-                "\n", use.mix)
-  if(blasso)
+                "\n", config$use.mix)
+  if(config$blasso)
     txt <- paste0(txt, "\n#OPTION BayesianLasso Tibshirani")
   txt <- paste0(txt, "\n")
 
@@ -250,6 +365,7 @@ writeConfigForGs3 <- function(config.file, data.file, ped.file=NULL, genos.file,
 ##' @param stdouterr.file path to the text file to which the stdout and stderr will be written
 ##' @return return value (0 if success)
 ##' @author Timothee Flutre
+##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}
 ##' @export
 execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
   stopifnot(file.exists(config.file))
@@ -271,6 +387,7 @@ execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
 ##' @param vcs.file path to the file containing the variance components' samples
 ##' @return \code{\link[coda]{mcmc.list}}
 ##' @author Timothee Flutre
+##' @seealso \code{link{execGs3}}
 ##' @examples
 ##' \dontrun{vcs <- vcs2mcmc(vcs.file)
 ##' summary(vcs)
@@ -295,4 +412,247 @@ vcs2mcmc <- function(vcs.file){
       d[[j]] <- NULL
 
   return(coda::mcmc.list(coda::mcmc(d)))
+}
+
+##' Partition for cross-validation
+##'
+##' Return a vector which content corresponds to fold indices and names to genotypes.
+##' The fold index of a given genotype indicates that, for this fold, the genotype won't be used for training but for validation.
+##' @param geno.names vector of genotype names
+##' @param nb.folds number of folds
+##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
+##' @return vector
+##' @author Timothee Flutre
+##' @seealso \code{\link{crossValWithGs3}}
+##' @export
+getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
+  stopifnot(is.vector(geno.names),
+            nb.folds <= length(geno.names),
+            ifelse(! is.null(seed), is.numeric(seed), TRUE))
+
+  if(! is.null(seed)){
+    set.seed(seed)
+    geno.names <- sample(x=geno.names)
+  }
+
+  nb.genos <- length(geno.names)
+  nb.valid.genos.fold1 <- ceiling(nb.genos / nb.folds)
+  fold.indices <- seq(from=1, to=nb.genos, by=nb.valid.genos.fold1)
+  valid.geno.names.per.fold <- lapply(fold.indices, function(i){
+    geno.names[i:min(i + nb.valid.genos.fold1 - 1, nb.genos)]
+  })
+
+  nb.valid.genos.per.fold <- sapply(valid.geno.names.per.fold, length)
+  valid.geno.idx.per.fold <- stats::setNames(
+      object=rep.int(1:nb.folds, times=nb.valid.genos.per.fold),
+      nm=unlist(valid.geno.names.per.fold))
+
+  return(valid.geno.idx.per.fold)
+}
+
+##' Cross-validation
+##'
+##' Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
+##' @param genos matrix of SNP genotypes
+##' @param dat data.frame with phenotypes
+##' @param col.id column index of the individual identifiers in \code{dat}
+##' @param col.trait column index of the trait of interest in \code{dat}
+##' @param binary.trait logical
+##' @param ped.file path to the file containing the pedigree
+##' @param config list
+##' @param nb.folds number of folds
+##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
+##' @param verbose verbosity level (0/1/2)
+##' @return data.frame
+##' @author Helene Muranty, Timothee Flutre
+##' @seealso \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
+##' @export
+crossValWithGs3 <- function(genos,
+                            dat,
+                            col.id=1,
+                            col.trait=2,
+                            binary.trait=FALSE,
+                            ped.file=NULL,
+                            config,
+                            nb.folds=10,
+                            seed=NULL,
+                            verbose=1){
+  stopifnot(isValidGenos(genos, NULL),
+            isValidData(dat, NULL, col.id, col.trait, binary.trait),
+            all(rownames(genos) %in% levels(dat[, col.id])),
+            all(levels(dat[, col.id]) %in% rownames(genos)),
+            isValidConfig(config),
+            nb.folds <= nrow(genos))
+
+  ## prepare output
+  out <- data.frame(fold=1:nb.folds,
+                    train.size=NA,
+                    valid.size=NA,
+                    ## rel=NA,
+                    ## rel.sq=NA,
+                    ## rel.top10=NA,
+                    cor.p=NA,
+                    cor.s=NA,
+                    reg.intercept=NA,
+                    reg.slope=NA,
+                    stringsAsFactors=FALSE)
+
+  ## prepare partitions
+  valid.geno.idx.per.fold <- getPartitionGenos(geno.names=rownames(genos),
+                                               nb.folds=nb.folds,
+                                               seed=seed)
+  stopifnot(! any(duplicated(names(valid.geno.idx.per.fold))))
+
+  ## prepare temporary files (same for all folds)
+  dat.train.file <- "dat_train_gs3.txt"
+  geno.train.file <- "geno_train_gs3.txt"
+  config.train.file <- "config_train_gs3.txt"
+  stdouterr.train.file <- "stdouterr_train_gs3.txt"
+  dat.valid.file <- "dat_valid_gs3.txt"
+  geno.valid.file <- "geno_valid_gs3.txt"
+  config.valid.file <- "config_valid_gs3.txt"
+  stdouterr.valid.file <- "stdouterr_valid_gs3.txt"
+
+  ## cross-validation
+  if(verbose == 1)
+    pb <- utils::txtProgressBar(min=0, max=nb.folds, style=3)
+  for(fold.id in seq(nb.folds)){
+    if(verbose == 1)
+      utils::setTxtProgressBar(pb, fold.id)
+
+    ## training
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ": start training"), stdout())
+    train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
+    out$train.size[fold.id] <- length(train.genos)
+    dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
+    genos.train <- genos[train.genos,]
+    inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
+                                  nm=levels(dat.train[, col.id]))
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ":",
+                   " nb.genos=", nrow(genos.train),
+                   " nb.snps=", ncol(genos.train),
+                   " nb.obs=", nrow(dat.train)),
+            stdout())
+    writeDataForGs3(x = dat.train,
+                    file = dat.train.file,
+                    inds = inds.train,
+                    col.id = col.id,
+                    col.traits = col.trait,
+                    binary.traits = binary.trait)
+    writeGenosForGs3(x = genos.train,
+                     file = geno.train.file,
+                     inds = inds.train)
+    config.train <- config
+    config.train$vcs.file <- paste0(config$vcs.file, "_fold", fold.id)
+    config.train$sol.file <- paste0(config$sol.file, "_fold", fold.id)
+    writeConfigForGs3(config = config.train,
+                      config.file = config.train.file,
+                      data.file = dat.train.file,
+                      ped.file = ped.file,
+                      genos.file = geno.train.file)
+    execGs3(config.file=config.train.file,
+            stdouterr.file=stdouterr.train.file)
+    if(FALSE) # for debugging purposes
+      stdouterr.train <- readLines(stdouterr.train.file)
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ": end training"), stdout())
+
+    ## validation
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ": start validation"), stdout())
+    valid.genos <- names(which(valid.geno.idx.per.fold == fold.id))
+    stopifnot(all(! valid.genos %in% train.genos))
+    out$valid.size[fold.id] <- length(valid.genos)
+    dat.valid <- droplevels(dat[dat[,col.id] %in% valid.genos,])
+    genos.valid <- genos[valid.genos,]
+    inds.valid <- stats::setNames(object=1:nlevels(dat.valid[, col.id]),
+                                  nm=levels(dat.valid[, col.id]))
+    dat.valid.to.predict <- dat.valid
+    dat.valid.to.predict[, col.trait] <- NA
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ":",
+                   " nb.genos=", nrow(genos.valid),
+                   " nb.snps=", ncol(genos.valid),
+                   " nb.obs=", nrow(dat.valid)),
+            stdout())
+    writeDataForGs3(x = dat.valid.to.predict,
+                    file = dat.valid.file,
+                    inds = inds.valid,
+                    col.id = col.id,
+                    col.traits = col.trait,
+                    binary.traits = binary.trait)
+    writeGenosForGs3(x = genos.valid,
+                     file = geno.valid.file,
+                     inds = inds.valid)
+    config.valid <- config.train
+    config.valid$method <- "PREDICT"
+    writeConfigForGs3(config = config.valid,
+                      config.file = config.valid.file,
+                      data.file = dat.valid.file,
+                      ped.file = ped.file,
+                      genos.file = geno.valid.file)
+    execGs3(config.file=config.valid.file,
+            stdouterr.file=stdouterr.valid.file)
+    if(FALSE) # for debugging purposes
+      stdouterr.valid <- readLines(stdouterr.valid.file)
+    pred.file <- paste0("predictions_fold", fold.id)
+    file.rename(from="predictions", to=pred.file)
+    if(verbose > 1)
+      write(paste0("fold ", fold.id, ": end validation"), stdout())
+
+    ## assess accuracy
+    if(FALSE){ # for debugging purposes
+      vcs <- utils::read.table(file=config.train$vcs.file, header=TRUE)
+      ebvs <- utils::read.table(file=paste0(config.valid.file, "_EBVs"),
+                                header=TRUE)
+      sols <- utils::read.table(file=config.train$sol.file, header=TRUE)
+    }
+    pred <- utils::read.table(file=pred.file, header=TRUE)
+    stopifnot(nrow(pred) == nrow(dat.valid))
+    pred$geno <- names(inds.valid)[match(pred$id, inds.valid)]
+    pred <- pred[order(pred$geno),]
+    dat.valid <- dat.valid[order(dat.valid[,col.id]),]
+    stopifnot(all(pred$geno == as.character(dat.valid[,col.id])))
+    out$cor.p[fold.id] <- stats::cor(x=dat.valid[, col.trait],
+                                     y=pred$prediction,
+                                     method="pearson")
+    out$cor.s[fold.id] <- stats::cor(x=dat.valid[, col.trait],
+                                     y=pred$prediction,
+                                     method="spearman")
+    fit <- stats::lm(dat.valid[, col.trait] ~ pred$prediction)
+    out$reg.intercept[fold.id] <- stats::coefficients(fit)[1]
+    out$reg.slope[fold.id] <- stats::coefficients(fit)[2]
+    if(FALSE){ # for debugging purposes
+      plot(x=pred$prediction, y=dat.valid[, col.trait],
+           main=paste0("fold ", fold.id))
+      abline(a=0, b=1, lty=2)
+      abline(v=mean(pred$prediction), lty=2)
+      abline(h=mean(dat.valid[, col.trait]), lty=2)
+      abline(fit, col="red")
+    }
+  }
+  if(verbose == 1)
+    close(pb)
+
+  ## remove temporary files
+  file.remove(dat.train.file,
+              geno.train.file,
+              config.train.file,
+              stdouterr.train.file,
+              paste0(config.train.file, "_EBVs"),
+              dat.valid.file,
+              geno.valid.file,
+              config.valid.file,
+              paste0(config.valid.file, "_EBVs"),
+              stdouterr.valid.file,
+              paste0(config$vcs.file, "_fold", 1:nb.folds),
+              paste0(config$sol.file, "_fold", 1:nb.folds),
+              paste0("predictions_fold", 1:nb.folds),
+              "freq")
+  if(file.exists(paste0(config.train.file, "_cont")))
+    file.remove(paste0(config.train.file, "_cont"))
+
+  return(out)
 }

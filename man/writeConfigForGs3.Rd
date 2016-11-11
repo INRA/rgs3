@@ -4,17 +4,34 @@
 \alias{writeConfigForGs3}
 \title{Write configuration}
 \usage{
-writeConfigForGs3(config.file, data.file, ped.file = NULL, genos.file,
-  num.loci, method, simul = "F", niter = 10000, burnin = 2000,
-  thin = 10, conv.crit = "1d-8", correct = 1000, vcs.file = "var.txt",
-  sol.file = "sol.txt", twc, num.eff, ptl, vc = data.frame(var = c("vara",
-  "vard", "varg", "varp", "vare"), exp = c("2.52d-04", "1.75d-06", "3.56",
-  "2.15", "0.19"), df = rep("-2", 5), stringsAsFactors = FALSE), rec.id,
-  cont = "F", mod, ap = c(1, 10), dp = c(1, 1), use.mix = "F",
-  blasso = FALSE)
+writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
+  config.file)
 }
 \arguments{
-\item{config.file}{path to the text file to which the configuration for GS3 will be written}
+\item{config}{list containing the configuration for GS3 via the following components:
+\describe{
+  \item{num.loci}{number of loci}
+  \item{method}{BLUP/MCMCBLUP/VCE/PREDICT}
+  \item{simul}{one-letter character indicating if simulations should be performed (T) or not (F)}
+  \item{niter}{number of iterations for the Gibbs sampler}
+  \item{burnin}{burn-in for the Gibbs sampler}
+  \item{thin}{thinning for the Gibbs sampler}
+  \item{conv.crit}{convergence criterion (meaningful if BLUP)}
+  \item{correct}{correction (to avoid numerical problems)}
+  \item{vcs.file}{path to the text file to which the variance component samples will be written}
+  \item{sol.file}{path to the text file to which the solutions will be written}
+  \item{twc}{2-element vector which first element corresponds to the column index of the trait values in the data file, and the second to the column index of the weights in the data file (use 0 if no weight)}
+  \item{num.eff}{number of effects}
+  \item{ptl}{3-column data.frame indicating, for each covariable/factor, its position (column) in the data file, type of effect and number of levels}
+  \item{vc}{3-column data.frame indicating, for each variance component, its expected value and degrees of freedom}
+  \item{rec.id}{1-element vector indicating the column in the data file corresponding to the genotype identifiers}
+  \item{cont}{vector with T or F indicating if the MCMC run is a continuation of a previous, interrupted one}
+  \item{mod}{vector with T or F for each covariable/factor indicating if it has to be included or not in the model}
+  \item{ap}{prior proportions of the BayesCPi mixture}
+  \item{dp}{prior proportions of the BayesCPi mixture}
+  \item{use.mix}{one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)}
+  \item{blasso}{boolean indicating if the Bayesian lasso prior should be used or not}
+}}
 
 \item{data.file}{path to the text file with the data}
 
@@ -22,47 +39,7 @@ writeConfigForGs3(config.file, data.file, ped.file = NULL, genos.file,
 
 \item{genos.file}{path to the text file with the genotypes}
 
-\item{num.loci}{number of loci}
-
-\item{method}{BLUP/MCMCBLUP/VCE/PREDICT}
-
-\item{simul}{one-letter character indicating if simulations should be performed (T) or not (F)}
-
-\item{niter}{number of iterations for the Gibbs sampler}
-
-\item{burnin}{burn-in for the Gibbs sampler}
-
-\item{thin}{thinning for the Gibbs sampler}
-
-\item{conv.crit}{convergence criterion (meaningful if BLUP)}
-
-\item{correct}{correction (to avoid numerical problems)}
-
-\item{vcs.file}{path to the text file to which the variance component samples will be written}
-
-\item{sol.file}{path to the text file to which the solutions will be written}
-
-\item{twc}{2-element vector which first element corresponds to the column index of the trait values in the data file, and the second to the column index of the weights in the data file (use 0 if no weight)}
-
-\item{num.eff}{number of effects}
-
-\item{ptl}{3-column data.frame indicating, for each covariable/factor, the position in the data file, type of effect and number of levels}
-
-\item{vc}{3-column data.frame indicating, for each variance component, the expected value and degrees of freedom}
-
-\item{rec.id}{1-element vector with a unique number for each record. Used  to  trace  the  records  across  the  cross-validation process.}
-
-\item{cont}{vector with T or F indicating if the MCMC run is a continuation of a previous, interrupted one.}
-
-\item{mod}{vector with T or F for each covariable/factor indicating if it has to be included or not in the model}
-
-\item{ap}{prior proportions of the BayesCPi mixture}
-
-\item{dp}{prior proportions of the BayesCPi mixture}
-
-\item{use.mix}{one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)}
-
-\item{blasso}{boolean indicating if the Bayesian lasso prior should be used or not}
+\item{config.file}{path to the text file to which the configuration for GS3 will be written}
 }
 \value{
 nothing
@@ -72,5 +49,8 @@ Write the configuration file for GS3.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{getDefaultConfig}}, \code{\link{execGs3}}
 }
 

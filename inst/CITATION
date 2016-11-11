@@ -1,11 +1,13 @@
 citHeader("To cite rgs3 in publications, use:")
 
-citEntry(entry = "Misc",
-  title        = "R package wrapping the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/)",
-  author       = personList(as.person("Timothee Flutre [cre,aut]")),
-  url          = "https://github.com/timflutre/rgs3",
+citEntry(entry  = "Misc",
+         title  = "R package wrapping the GS3 program for genomic selection (http://snp.toulouse.inra.fr/~alegarra/)",
+         author = personList(as.person("Timothee Flutre"),
+                             as.person("Helene Muranty")),
+         url    = "https://github.com/timflutre/rgs3",
 
-  textVersion =
-  paste("R package wrapping the GS3 program for genomic selection.",
-        "URL https://github.com/timflutre/rgs3.")
-)
+         textVersion =
+           paste("Flutre, Muranty (2016).",
+                 "R package wrapping the GS3 program for genomic selection.",
+                 "URL https://github.com/timflutre/rgs3.")
+         )

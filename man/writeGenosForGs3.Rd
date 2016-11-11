@@ -11,7 +11,7 @@ writeGenosForGs3(x, file, inds)
 
 \item{file}{path to the text file to which x will be written}
 
-\item{inds}{named vector with values from 1 to I and names the corresponding individual identifiers}
+\item{inds}{named vector with values from 1 to I and names the corresponding individual identifiers; this very same vector should also be used with \code{\link{writeDataForGs3}}}
 }
 \value{
 nothing
@@ -21,5 +21,8 @@ Write the genotype file for GS3.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{writeDataForGs3}}, \code{\link{writeConfigForGs3}}
 }
 

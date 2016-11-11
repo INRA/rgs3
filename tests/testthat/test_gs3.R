@@ -29,3 +29,21 @@ test_that("writeDataForGs3", {
   if(file.exists(phenos.file))
     file.remove(phenos.file)
 })
+
+test_that("getPartitionGenos_equal", {
+  geno.names <- paste0("geno", 1:4)
+  expected <- setNames(object=c(1, 1, 2, 2), nm=geno.names)
+  observed <- getPartitionGenos(geno.names=geno.names,
+                                nb.folds=2,
+                                seed=NULL)
+  expect_equal(observed, expected)
+})
+
+test_that("getPartitionGenos_unequal", {
+  geno.names <- paste0("geno", 1:5)
+  expected <- setNames(object=c(1, 1, 1, 2, 2), nm=geno.names)
+  observed <- getPartitionGenos(geno.names=geno.names,
+                                nb.folds=2,
+                                seed=NULL)
+  expect_equal(observed, expected)
+})

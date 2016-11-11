@@ -257,8 +257,6 @@ Write the configuration file for GS3:
 
 ```{r write_config}
 config.file <- paste0(getwd(), "/config_gs3_vce.txt")
-vcs.file <- paste0(getwd(), "/var_comp_samples.txt")
-sol.file <- paste0(getwd(), "/solutions.txt")
 (ptl <- data.frame(position=c(which(colnames(phenos) == "year"),
                               ncol(phenos) + 1),
                               ## ncol(phenos) + 1),
@@ -272,32 +270,35 @@ sol.file <- paste0(getwd(), "/solutions.txt")
                              ## 0),
                              ## I),
                    stringsAsFactors=FALSE))
-writeConfigForGs3(config.file=config.file,
+config <- list(num.loci=P,
+               method="VCE",
+               simul="F",
+               niter=2*10^4,
+               burnin=2*10^3,
+               thin=10,
+               conv.crit="1d-8",
+               correct=1000,
+               vcs.file=paste0(getwd(), "/var_comp_samples.txt"),
+               sol.file=paste0(getwd(), "/solutions.txt"),
+               twc=c(which(colnames(phenos) == "response1"), 0),
+               num.eff=nrow(ptl),
+               ptl=ptl,
+               vc=data.frame(var=c("vara", "vard", "varg", "varp", "vare"),
+                             exp=c("2.52d-04","1.75d-06","3.56","2.15","0.19"),
+                             df=rep("-2", 5),
+                             stringsAsFactors=FALSE),
+               rec.id=which(colnames(phenos) == "geno"),
+               cont="F",
+               mod=rep("T", nrow(ptl)),
+               ap=c(1,10),
+               dp=c(1,1),
+               use.mix="F",
+               blasso=FALSE)
+writeConfigForGs3(config=config,
                   data.file=phenos.file.gs3,
                   ped.file=NULL,
                   genos.file=genos.file.gs3,
-                  num.loci=P,
-                  method="VCE",
-                  simul="F",
-                  niter=2*10^4,
-                  burnin=2*10^3,
-                  thin=10,
-                  vcs.file=vcs.file,
-                  sol.file=sol.file,
-                  twc=c(which(colnames(phenos) == "response1"), 0),
-                  num.eff=nrow(ptl),
-                  ptl=ptl,
-                  vc=data.frame(var=c("vara","vard","varg","varp","vare"),
-                                exp=c("2.52d-04","1.75d-06","3.56","2.15","0.19"),
-                                df=rep("-2", 5),
-                                stringsAsFactors=FALSE),
-                  rec.id=which(colnames(phenos) == "geno"),
-                  cont="F",
-                  mod=rep("T", nrow(ptl)),
-                  ap=c(1, 10),
-                  dp=c(1, 1),
-                  use.mix="F",
-                  blasso=FALSE)
+                  config.file=config.file)
 ```
 
 Here is how the resulting configuration file looks like:
@@ -329,7 +330,7 @@ But we won't use this function in this vignette as `coda` may not be available.
 Load the variance components' samples:
 
 ```{r load_vcs}
-vcs <- read.table(vcs.file, header=TRUE)
+vcs <- read.table(config$vcs.file, header=TRUE)
 str(vcs)
 ```
 
@@ -412,7 +413,7 @@ hist(ebvs$g_overall, breaks="FD",
 
 These are found in the file specified via the variable `sol.file` (see above):
 ```{r load_other-estim}
-sols <- read.table(file=sol.file, header=TRUE)
+sols <- read.table(file=config$sol.file, header=TRUE)
 str(sols)
 ```
 

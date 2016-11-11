@@ -12,7 +12,7 @@ writeDataForGs3(x, file, inds, col.id = 1, col.traits = 2,
 
 \item{file}{path to the text file to which x will be written}
 
-\item{inds}{named vector with values from 1 to I and names the corresponding individual identifiers}
+\item{inds}{named vector with values from 1 to I and names the corresponding individual identifiers; this very same vector should also be used with \code{\link{writeGenosForGs3}}}
 
 \item{col.id}{column index of the individual identifiers in x}
 
@@ -28,5 +28,8 @@ Write the data file for GS3.
 }
 \author{
 Timothee Flutre
+}
+\seealso{
+\code{\link{writeGenosForGs3}}, \code{\link{writeConfigForGs3}}
 }
 
