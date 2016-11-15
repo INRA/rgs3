@@ -215,9 +215,13 @@ isValidConfig <- function(config){
              "conv.crit", "correct", "vcs.file", "sol.file", "twc", "num.eff",
              "ptl", "vc", "rec.id", "cont", "mod", "ap", "dp", "use.mix",
              "blasso") %in% names(config))){
-      all(config$method %in% c("BLUP", "MCMCBLUP", "VCE", "PREDICT"),
+      all(! is.na(config$num.loci),
+          config$method %in% c("BLUP", "MCMCBLUP", "VCE", "PREDICT"),
           is.vector(config$twc),
           length(config$twc) == 2,
+          config$twc[1] > 0,
+          config$twc[2] >= 0,
+          config$twc[1] != config$twc[2],
           is.data.frame(config$ptl),
           ncol(config$ptl) == 3,
           all(colnames(config$ptl) %in% c("position", "type", "nlevels")),
@@ -230,6 +234,7 @@ isValidConfig <- function(config){
           is.data.frame(config$vc),
           ncol(config$vc) == 3,
           all(colnames(config$vc) %in% c("var", "exp", "df")),
+          ! is.na(config$rec.id),
           is.vector(config$ap),
           length(config$ap) == 2,
           is.vector(config$dp),
@@ -290,10 +295,18 @@ writeConfigForGs3 <- function(config,
                               config.file){
   stopifnot(isValidConfig(config),
             file.exists(data.file))
+  tmp <- utils::read.table(file=data.file, sep=" ", nrows=2)
+  stopifnot(config$twc[1] <= ncol(tmp),
+            ifelse(config$twc[2] != 0,
+                   config$twc[2] <= ncol(tmp),
+                   TRUE))
   if(! is.null(ped.file))
     stopifnot(file.exists(ped.file))
-  if(! is.null(genos.file))
+  if(! is.null(genos.file)){
     stopifnot(file.exists(genos.file))
+    tmp <- readLines(con=genos.file, n=1)
+    stopifnot(config$num.loci == nchar(tmp) - 48) # see writeGenosForGs3()
+  }
 
   txt <- paste0("DATAFILE",
                 "\n", data.file)
@@ -455,8 +468,6 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
 ##' @param genos matrix of SNP genotypes
 ##' @param dat data.frame with phenotypes
-##' @param col.id column index of the individual identifiers in \code{dat}
-##' @param col.trait column index of the trait of interest in \code{dat}
 ##' @param binary.trait logical
 ##' @param ped.file path to the file containing the pedigree
 ##' @param config list
@@ -465,23 +476,24 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' @param verbose verbosity level (0/1/2)
 ##' @return data.frame
 ##' @author Helene Muranty, Timothee Flutre
-##' @seealso \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
+##' @seealso \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
 ##' @export
 crossValWithGs3 <- function(genos,
                             dat,
-                            col.id=1,
-                            col.trait=2,
                             binary.trait=FALSE,
                             ped.file=NULL,
                             config,
                             nb.folds=10,
                             seed=NULL,
                             verbose=1){
+  stopifnot(isValidConfig(config))
+  col.id <- config$rec.id
+  col.trait <- config$twc[1]
   stopifnot(isValidGenos(genos, NULL),
+            config$num.loci == ncol(genos),
             isValidData(dat, NULL, col.id, col.trait, binary.trait),
             all(rownames(genos) %in% levels(dat[, col.id])),
             all(levels(dat[, col.id]) %in% rownames(genos)),
-            isValidConfig(config),
             nb.folds <= nrow(genos))
 
   ## prepare output
@@ -522,7 +534,8 @@ crossValWithGs3 <- function(genos,
 
     ## training
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ": start training"), stdout())
+      write(paste0("fold ", fold.id, "/", nb.folds,
+                   ": start training"), stdout())
     train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
     out$train.size[fold.id] <- length(train.genos)
     dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
@@ -530,7 +543,7 @@ crossValWithGs3 <- function(genos,
     inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
                                   nm=levels(dat.train[, col.id]))
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ":",
+      write(paste0("fold ", fold.id, "/", nb.folds, ":",
                    " nb.genos=", nrow(genos.train),
                    " nb.snps=", ncol(genos.train),
                    " nb.obs=", nrow(dat.train)),
@@ -557,11 +570,13 @@ crossValWithGs3 <- function(genos,
     if(FALSE) # for debugging purposes
       stdouterr.train <- readLines(stdouterr.train.file)
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ": end training"), stdout())
+      write(paste0("fold ", fold.id, "/", nb.folds,
+                   ": end training"), stdout())
 
     ## validation
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ": start validation"), stdout())
+      write(paste0("fold ", fold.id, "/", nb.folds,
+                   ": start validation"), stdout())
     valid.genos <- names(which(valid.geno.idx.per.fold == fold.id))
     stopifnot(all(! valid.genos %in% train.genos))
     out$valid.size[fold.id] <- length(valid.genos)
@@ -572,7 +587,7 @@ crossValWithGs3 <- function(genos,
     dat.valid.to.predict <- dat.valid
     dat.valid.to.predict[, col.trait] <- NA
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ":",
+      write(paste0("fold ", fold.id, "/", nb.folds, ":",
                    " nb.genos=", nrow(genos.valid),
                    " nb.snps=", ncol(genos.valid),
                    " nb.obs=", nrow(dat.valid)),
@@ -600,7 +615,8 @@ crossValWithGs3 <- function(genos,
     pred.file <- paste0("predictions_fold", fold.id)
     file.rename(from="predictions", to=pred.file)
     if(verbose > 1)
-      write(paste0("fold ", fold.id, ": end validation"), stdout())
+      write(paste0("fold ", fold.id, "/", nb.folds,
+                   ": end validation"), stdout())
 
     ## assess accuracy
     if(FALSE){ # for debugging purposes

@@ -4,18 +4,13 @@
 \alias{crossValWithGs3}
 \title{Cross-validation}
 \usage{
-crossValWithGs3(genos, dat, col.id = 1, col.trait = 2,
-  binary.trait = FALSE, ped.file = NULL, config, nb.folds = 10,
-  seed = NULL, verbose = 1)
+crossValWithGs3(genos, dat, binary.trait = FALSE, ped.file = NULL, config,
+  nb.folds = 10, seed = NULL, verbose = 1)
 }
 \arguments{
 \item{genos}{matrix of SNP genotypes}
 
 \item{dat}{data.frame with phenotypes}
-
-\item{col.id}{column index of the individual identifiers in \code{dat}}
-
-\item{col.trait}{column index of the trait of interest in \code{dat}}
 
 \item{binary.trait}{logical}
 
@@ -39,6 +34,6 @@ Perform K-fold cross-validation with GS3, and report metrics as advised in \href
 Helene Muranty, Timothee Flutre
 }
 \seealso{
-\code{\link{execGs3}}, \code{\link{getPartitionGenos}}
+\code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
 }
 
