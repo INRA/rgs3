@@ -502,6 +502,18 @@ abline(h=0, v=0, a=0, b=1, lty=2); abline(accuracy.GS3, col="red")
 ```
 
 
+# Remove output files
+
+```{r rmv_out_files}
+for(f in c(config.file, phenos.file.gs3, genos.file.gs3, stdouterr.file,
+           "config_gs3_vce.txt_EBVs", "config_gs3_vce.txt_cont", "freq",
+           "solutions.txt", "var_comp_samples.txt"))
+  if(file.exists(f))
+    file.remove(f)
+```
+
+
+
 # Acknowledgments
 
 * Andrés Legarra
