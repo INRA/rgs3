@@ -466,6 +466,7 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' Cross-validation
 ##'
 ##' Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
+##' Files are saved in the current directory.
 ##' @param genos matrix of SNP genotypes
 ##' @param dat data.frame with phenotypes
 ##' @param binary.trait logical
@@ -473,7 +474,8 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' @param config list
 ##' @param nb.folds number of folds
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
-##' @param verbose verbosity level (0/1/2)
+##' @param remove.files remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them
+##' @param verbose verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}
 ##' @return data.frame
 ##' @author Helene Muranty, Timothee Flutre
 ##' @seealso \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
@@ -485,6 +487,7 @@ crossValWithGs3 <- function(genos,
                             config,
                             nb.folds=10,
                             seed=NULL,
+                            remove.files="some",
                             verbose=1){
   stopifnot(isValidConfig(config))
   col.id <- config$rec.id
@@ -494,7 +497,8 @@ crossValWithGs3 <- function(genos,
             isValidData(dat, NULL, col.id, col.trait, binary.trait),
             all(rownames(genos) %in% levels(dat[, col.id])),
             all(levels(dat[, col.id]) %in% rownames(genos)),
-            nb.folds <= nrow(genos))
+            nb.folds <= nrow(genos),
+            remove.files %in% c("none", "some", "all"))
 
   ## prepare output
   out <- data.frame(fold=1:nb.folds,
@@ -503,6 +507,7 @@ crossValWithGs3 <- function(genos,
                     ## rel=NA,
                     ## rel.sq=NA,
                     ## rel.top10=NA,
+                    rmspe=NA,
                     cor.p=NA,
                     cor.s=NA,
                     reg.intercept=NA,
@@ -515,22 +520,32 @@ crossValWithGs3 <- function(genos,
                                                seed=seed)
   stopifnot(! any(duplicated(names(valid.geno.idx.per.fold))))
 
-  ## prepare temporary files (same for all folds)
-  dat.train.file <- "dat_train_gs3.txt"
-  geno.train.file <- "geno_train_gs3.txt"
-  config.train.file <- "config_train_gs3.txt"
-  stdouterr.train.file <- "stdouterr_train_gs3.txt"
-  dat.valid.file <- "dat_valid_gs3.txt"
-  geno.valid.file <- "geno_valid_gs3.txt"
-  config.valid.file <- "config_valid_gs3.txt"
-  stdouterr.valid.file <- "stdouterr_valid_gs3.txt"
-
   ## cross-validation
+  fold.ids <- sprintf(fmt=paste0("%0", floor(log10(nb.folds))+1, "i"),
+                      1:nb.folds)
   if(verbose == 1)
     pb <- utils::txtProgressBar(min=0, max=nb.folds, style=3)
-  for(fold.id in seq(nb.folds)){
+  for(fold.id in seq(nb.folds)){ # for each fold
     if(verbose == 1)
       utils::setTxtProgressBar(pb, fold.id)
+
+    ## set up file names
+    dat.train.file <- paste0("dat_train_gs3_fold", fold.ids[fold.id],
+                             ".txt")
+    geno.train.file <- paste0("geno_train_gs3_fold", fold.ids[fold.id],
+                              ".txt")
+    config.train.file <- paste0("config_train_gs3_fold", fold.ids[fold.id],
+                                ".txt")
+    stdouterr.train.file <- paste0("stdouterr_train_gs3_fold",
+                                   fold.ids[fold.id], ".txt")
+    dat.valid.file <- paste0("dat_valid_gs3_fold", fold.ids[fold.id],
+                             ".txt")
+    geno.valid.file <- paste0("geno_valid_gs3_fold", fold.ids[fold.id],
+                              ".txt")
+    config.valid.file <- paste0("config_valid_gs3_fold", fold.ids[fold.id],
+                                ".txt")
+    stdouterr.valid.file <- paste0("stdouterr_valid_gs3_fold",
+                                   fold.ids[fold.id], ".txt")
 
     ## training
     if(verbose > 1)
@@ -631,6 +646,8 @@ crossValWithGs3 <- function(genos,
     pred <- pred[order(pred$geno),]
     dat.valid <- dat.valid[order(dat.valid[,col.id]),]
     stopifnot(all(pred$geno == as.character(dat.valid[,col.id])))
+    out$rmspe[fold.id] <- sqrt(mean((dat.valid[, col.trait] -
+                                     pred$prediction)^2))
     out$cor.p[fold.id] <- stats::cor(x=dat.valid[, col.trait],
                                      y=pred$prediction,
                                      method="pearson")
@@ -648,27 +665,33 @@ crossValWithGs3 <- function(genos,
       abline(h=mean(dat.valid[, col.trait]), lty=2)
       abline(fit, col="red")
     }
+
+    ## remove temporary files
+    if(remove.files != "none"){
+      if(remove.files %in% c("some", "all")){
+        file.remove(dat.train.file,
+                    geno.train.file,
+                    config.train.file,
+                    stdouterr.train.file,
+                    config.train$vcs.file,
+                    paste0(config.train.file, "_EBVs"),
+                    dat.valid.file,
+                    geno.valid.file,
+                    config.valid.file,
+                    paste0(config.valid.file, "_EBVs"),
+                    stdouterr.valid.file,
+                    pred.file,
+                    "freq")
+        if(file.exists(paste0(config.train.file, "_cont")))
+          file.remove(paste0(config.train.file, "_cont"))
+      }
+      if(remove.files == "all"){
+        file.remove(config.train$sol.file)
+      }
+    }
   }
   if(verbose == 1)
     close(pb)
-
-  ## remove temporary files
-  file.remove(dat.train.file,
-              geno.train.file,
-              config.train.file,
-              stdouterr.train.file,
-              paste0(config.train.file, "_EBVs"),
-              dat.valid.file,
-              geno.valid.file,
-              config.valid.file,
-              paste0(config.valid.file, "_EBVs"),
-              stdouterr.valid.file,
-              paste0(config$vcs.file, "_fold", 1:nb.folds),
-              paste0(config$sol.file, "_fold", 1:nb.folds),
-              paste0("predictions_fold", 1:nb.folds),
-              "freq")
-  if(file.exists(paste0(config.train.file, "_cont")))
-    file.remove(paste0(config.train.file, "_cont"))
 
   return(out)
 }

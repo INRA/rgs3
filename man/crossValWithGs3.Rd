@@ -5,7 +5,7 @@
 \title{Cross-validation}
 \usage{
 crossValWithGs3(genos, dat, binary.trait = FALSE, ped.file = NULL, config,
-  nb.folds = 10, seed = NULL, verbose = 1)
+  nb.folds = 10, seed = NULL, remove.files = "some", verbose = 1)
 }
 \arguments{
 \item{genos}{matrix of SNP genotypes}
@@ -22,13 +22,16 @@ crossValWithGs3(genos, dat, binary.trait = FALSE, ped.file = NULL, config,
 
 \item{seed}{if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold}
 
-\item{verbose}{verbosity level (0/1/2)}
+\item{remove.files}{remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them}
+
+\item{verbose}{verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}}
 }
 \value{
 data.frame
 }
 \description{
 Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
+Files are saved in the current directory.
 }
 \author{
 Helene Muranty, Timothee Flutre
