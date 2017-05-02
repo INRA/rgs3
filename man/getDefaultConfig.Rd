@@ -24,10 +24,9 @@ list
 \description{
 Return a list corresponding to a default configuration as used in the vignette.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{writeConfigForGs3}}, \code{\link{isValidConfig}}
 }
-
+\author{
+Timothee Flutre
+}

@@ -25,10 +25,9 @@ tmp <- cbind(as.matrix(vcs[[1]]), varA=vcs[[1]][,"vara"] * 2 * sum(afs * (1 - af
 vcs[[1]] <- coda::as.mcmc(tmp)
 summary(vcs)}
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{link{execGs3}}
 }
-
+\author{
+Timothee Flutre
+}

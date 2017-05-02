@@ -33,10 +33,9 @@ data.frame
 Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
 Files are saved in the current directory.
 }
-\author{
-Helene Muranty, Timothee Flutre
-}
 \seealso{
 \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
 }
-
+\author{
+Helene Muranty, Timothee Flutre
+}

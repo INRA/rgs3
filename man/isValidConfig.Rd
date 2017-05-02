@@ -15,10 +15,9 @@ logical
 \description{
 Check configuration
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}
 }
-
+\author{
+Timothee Flutre
+}

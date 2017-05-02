@@ -19,10 +19,9 @@ nothing
 \description{
 Write the genotype file for GS3.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{writeDataForGs3}}, \code{\link{writeConfigForGs3}}
 }
-
+\author{
+Timothee Flutre
+}

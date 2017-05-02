@@ -26,4 +26,3 @@ Return TRUE if the inputs are properly formatted and consistent.
 \author{
 Timothee Flutre
 }
-

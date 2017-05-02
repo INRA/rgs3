@@ -47,10 +47,9 @@ nothing
 \description{
 Write the configuration file for GS3.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{getDefaultConfig}}, \code{\link{execGs3}}
 }
-
+\author{
+Timothee Flutre
+}

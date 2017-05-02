@@ -20,4 +20,3 @@ Return TRUE if the input corresponds to a properly-formatted genotype matrix.
 \author{
 Timothee Flutre
 }
-

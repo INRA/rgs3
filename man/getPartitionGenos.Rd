@@ -20,10 +20,9 @@ vector
 Return a vector which content corresponds to fold indices and names to genotypes.
 The fold index of a given genotype indicates that, for this fold, the genotype won't be used for training but for validation.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{crossValWithGs3}}
 }
-
+\author{
+Timothee Flutre
+}

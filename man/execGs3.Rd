@@ -18,10 +18,9 @@ return value (0 if success)
 Execute GS3 via a system call.
 The expected executable name in the PATH is \code{gs3.exe} on Windows, \code{gs3} otherwise.
 }
-\author{
-Timothee Flutre
-}
 \seealso{
 \code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}
 }
-
+\author{
+Timothee Flutre
+}
