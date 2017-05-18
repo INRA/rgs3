@@ -3,9 +3,6 @@ title: "Cross-validation with rgs3"
 author: "Hélène Muranty and Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
-  rmarkdown::html_vignette:
-    toc: true
-    number_sections: TRUE
   html_document:
     toc: true
     toc_float: true
@@ -40,13 +37,13 @@ knitr::opts_chunk$set(fig.align="center")
 
 # Preamble
 
-Load the `rgs3` package (available [here](https://github.com/timflutre/rgs3)):
+Load the `rgs3` package (available [here](https://github.com/INRA/rgs3)):
 ```{r load_pkg}
 library(rgs3)
 packageVersion("rgs3")
 ```
 
-Then, read first the vignette `intro-rgs3` before trying to run this one.
+Then, read first the vignette `intro-rgs3` before this one.
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
 ```{r time_0}
@@ -66,6 +63,7 @@ Load phenotypes:
 
 ```{r load_phenos}
 phenos.file <- system.file("extdata", "phenos_df.txt.gz", package="rgs3")
+tools::md5sum(path.expand(phenos.file))
 phenos <- read.table(phenos.file, header=TRUE)
 phenos$year <- as.factor(phenos$year)
 str(phenos)
@@ -75,6 +73,7 @@ Load genotypes:
 
 ```{r load_genos}
 genos.file <- system.file("extdata", "genos_mat.txt.gz", package="rgs3")
+tools::md5sum(path.expand(genos.file))
 genos <- as.matrix(read.table(genos.file))
 dim(genos)
 ```

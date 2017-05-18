@@ -3,9 +3,6 @@ title: "Introduction to rgs3"
 author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
-  rmarkdown::html_vignette:
-    toc: true
-    number_sections: TRUE
   html_document:
     toc: true
     toc_float: true
@@ -40,9 +37,15 @@ knitr::opts_chunk$set(fig.align="center")
 
 # Preamble
 
-The `rgs3` package can be downloaded from [GitHub](https://github.com/timflutre/rgs3).
-To install it, we can follow the indications in the [`README.md`](https://github.com/timflutre/rgs3/blob/master/README.md) file.
-Once this is done, we can load the package into R:
+This document is an [R](https://www.r-project.org/) vignette available under the [CC BY-SA 4.0](http://creativecommons.org/licenses/by-sa/4.0/) license.
+It is part of the R package [`rgs3`](https://github.com/INRA/rgs3), a free software available under the GPL version 3 or later, with copyright from the Institut National de la Recherche Agronomique (INRA).
+
+The `rgs3` package can be downloaded from [GitHub](https://github.com/INRA/rgs3).
+To install it, we can follow the indications in the [`README.md`](https://github.com/INRA/rgs3/blob/master/README.md) file.
+For the `rgs3` package to work successfully, the [GS3](http://snp.toulouse.inra.fr/~alegarra/) program should be already installed.
+Note that this vignette requires a version at least as recent as January 6, 2016.
+
+Once the installation is completed, we can load the package into R:
 
 ```{r, echo=FALSE}
 if("package:rgs3" %in% search())
@@ -53,11 +56,6 @@ if("package:rgs3" %in% search())
 library(rgs3)
 packageVersion("rgs3")
 ```
-
-For the `rgs3` package to work successfully, the GS3 program should be already installed.
-It should be available in our [PATH](https://en.wikipedia.org/wiki/PATH_%28variable%29), as `gs3.exe` for Windows and as `gs3` for others (such as GNU/Linux or Mac OS).
-The GS3 program is available for download at the [web page](http://snp.toulouse.inra.fr/~alegarra/) of Andrés Legarra (INRA).
-Note that this vignette requires a version at least as recent as January 6, 2016.
 
 This R chunk is used to assess how much time it takes to execute the R code in this document until the end:
 ```{r time_0}
