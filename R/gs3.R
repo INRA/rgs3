@@ -437,7 +437,7 @@ vcs2mcmc <- function(vcs.file){
             length(vcs.file) == 1,
             file.exists(vcs.file))
 
-  d <- utils::read.table(vcs.file, header=TRUE)
+  d <- utils::read.table(vcs.file, header=TRUE, check.names=FALSE)
   for(j in seq_along(d))
     if(! is.numeric(d[[j]]))
       d[[j]] <- NULL
