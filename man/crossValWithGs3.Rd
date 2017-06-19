@@ -4,25 +4,32 @@
 \alias{crossValWithGs3}
 \title{Cross-validation}
 \usage{
-crossValWithGs3(genos, dat, binary.trait = FALSE, ped.file = NULL, config,
-  nb.folds = 10, seed = NULL, remove.files = "some", verbose = 1)
+crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
+  ped.file = NULL, nb.folds = 10, seed = NULL, remove.files = "some",
+  nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
 \item{genos}{matrix of SNP genotypes}
 
-\item{dat}{data.frame with phenotypes}
+\item{dat}{data frame with phenotypes}
+
+\item{config}{list containing the configuration for GS3}
+
+\item{task.id}{character containing the task identifier used as prefix for the output files (for each fold, its index will be added)}
 
 \item{binary.trait}{logical}
 
 \item{ped.file}{path to the file containing the pedigree}
-
-\item{config}{list}
 
 \item{nb.folds}{number of folds}
 
 \item{seed}{if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold}
 
 \item{remove.files}{remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them}
+
+\item{nb.cores}{number of cores to launch folds in parallel (via \code{\link[parallel]{mclapply}}, on Unix-like computers, or \code{\link[parallel]{parLapply}} on Windows); you can also use \code{\link[parallel]{detectCores}}}
+
+\item{cl}{object returned by \code{\link[parallel]{makeCluster}}, necessary only if \code{nb.cores > 1} and the computer runs Windows; if NULL in such cases, will be created silently}
 
 \item{verbose}{verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}}
 }

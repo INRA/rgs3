@@ -7,7 +7,7 @@
 isValidData(x, inds, col.id, col.traits, binary.traits)
 }
 \arguments{
-\item{x}{data.frame}
+\item{x}{data frame}
 
 \item{inds}{vector}
 

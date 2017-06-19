@@ -4,22 +4,22 @@
 \alias{execGs3}
 \title{Execute GS3}
 \usage{
-execGs3(config.file, stdouterr.file = "gs3_stdouterr.txt")
+execGs3(config.file, task.id = "GS3")
 }
 \arguments{
 \item{config.file}{path to the text file containing the configuration for GS3}
 
-\item{stdouterr.file}{path to the text file to which the stdout and stderr will be written}
+\item{task.id}{character containing the task identifier used as prefix for the "stdout/stderr" and "freq" output files}
 }
 \value{
-return value (0 if success)
+path to the text file to which the stdout and stderr will be written
 }
 \description{
 Execute GS3 via a system call.
 The expected executable name in the PATH is \code{gs3.exe} on Windows, \code{gs3} otherwise.
 }
 \seealso{
-\code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}
+\code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}, \code{\link{cleanGs3}}
 }
 \author{
 Timothee Flutre

@@ -16,6 +16,8 @@
 ## License along with rgs3.  If not, see
 ## <http://www.gnu.org/licenses/>.
 
+##' @import parallel
+
 .onAttach <- function(libname, pkgname) {
   if(! requireNamespace("utils", quietly=TRUE))
     stop("Pkg utils needed for this function to work. Please install it.",

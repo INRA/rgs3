@@ -19,7 +19,7 @@
 ##' Check data
 ##'
 ##' Return TRUE if the inputs are properly formatted and consistent.
-##' @param x data.frame
+##' @param x data frame
 ##' @param inds vector
 ##' @param col.id numeric
 ##' @param col.traits numeric vector
@@ -163,17 +163,21 @@ writeGenosForGs3 <- function(x, file, inds){
 ##' Default configuration
 ##'
 ##' Return a list corresponding to a default configuration as used in the vignette.
-##' @param nb.snps number of SNPs
-##' @param method BLUP/MCMCBLUP/VCE/PREDICT
-##' @param ptl data.frame indicating, for each effect, its position in the data file, its type, and its number of levels
-##' @param twc vector
-##' @param rec.id numeric
+##' @param nb.snps number of SNPs in the SNP genotype file
+##' @param method character with the method to use, among BLUP/MCMCBLUP/VCE/PREDICT
+##' @param ptl data frame indicating, for each effect, its position in the data file, its type, and its number of levels
+##' @param twc numeric vector containing the column index of the trait of interest in the data file, as well as the column index of its weights (0 if no weight)
+##' @param rec.id numeric corresponding to the column index of the genotype identifiers in the data file
+##' @param use.mix character indicating by \code{"T"} (or \code{"F"}) if the BayesCPi model should be fitted (or not)
+##' @param blasso logical indicating if the Bayesian Lasso model should be fitted (requires \code{method="VCE"} and \code{use.mix="F"})
+##' @param task.id character containing the task identifier used as prefix for the output files
 ##' @return list
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{isValidConfig}}
 ##' @export
 getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
-                             rec.id=NA){
+                             rec.id=NA, use.mix="F", blasso=FALSE,
+                             task.id="GS3"){
   if(! is.na(nb.snps))
     stopifnot(is.numeric(nb.snps),
               length(nb.snps) == 1,
@@ -190,6 +194,15 @@ getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
     stopifnot(is.numeric(rec.id),
               length(rec.id) == 1,
               rec.id > 0)
+  stopifnot(is.character(task.id),
+            length(task.id) == 1)
+  stopifnot(is.character(use.mix),
+            length(use.mix) == 1,
+            use.mix %in% c("T", "F"),
+            is.logical(blasso),
+            ifelse(blasso,
+                   all(method == "VCE", use.mix == FALSE),
+                   TRUE))
 
   config <- list(num.loci=nb.snps,
                  method=method,
@@ -199,8 +212,8 @@ getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
                  thin=10,
                  conv.crit="1d-8",
                  correct=1000,
-                 vcs.file="var.txt",
-                 sol.file="sol.txt",
+                 vcs.file=paste0(task.id, "_vcs.txt"),
+                 sol.file=paste0(task.id, "_sol.txt"),
                  twc=twc,
                  num.eff=nrow(ptl),
                  ptl=ptl,
@@ -213,8 +226,8 @@ getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
                  mod=rep("T", nrow(ptl)),
                  ap=c(1,10),
                  dp=c(1,1),
-                 use.mix="F",
-                 blasso=FALSE)
+                 use.mix=use.mix,
+                 blasso=blasso)
 
   return(config)
 }
@@ -301,8 +314,8 @@ isValidConfig <- function(config){
 ##' @param data.file path to the text file with the data
 ##' @param ped.file path to the text file with the pedigree
 ##' @param genos.file path to the text file with the genotypes
-##' @param config.file path to the text file to which the configuration for GS3 will be written
-##' @return nothing
+##' @param task.id character containing the task identifier used as prefix for the configuration file; will be followed by \code{"_config.txt"}
+##' @return path to the text file to which the configuration for GS3 will be written
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{getDefaultConfig}}, \code{\link{execGs3}}
 ##' @export
@@ -310,7 +323,7 @@ writeConfigForGs3 <- function(config,
                               data.file,
                               ped.file=NULL,
                               genos.file=NULL,
-                              config.file){
+                              task.id="GS3"){
   stopifnot(isValidConfig(config),
             file.exists(data.file))
   tmp <- utils::read.table(file=data.file, sep=" ", nrows=2)
@@ -325,6 +338,8 @@ writeConfigForGs3 <- function(config,
     tmp <- readLines(con=genos.file, n=1)
     stopifnot(config$num.loci == nchar(tmp) - 48) # see writeGenosForGs3()
   }
+
+  config.file <- paste0(task.id, "_config.txt")
 
   txt <- paste0("DATAFILE",
                 "\n", data.file)
@@ -386,6 +401,8 @@ writeConfigForGs3 <- function(config,
   txt <- paste0(txt, "\n")
 
   cat(txt, file=config.file)
+
+  return(config.file)
 }
 
 ##' Execute GS3
@@ -393,23 +410,39 @@ writeConfigForGs3 <- function(config,
 ##' Execute GS3 via a system call.
 ##' The expected executable name in the PATH is \code{gs3.exe} on Windows, \code{gs3} otherwise.
 ##' @param config.file path to the text file containing the configuration for GS3
-##' @param stdouterr.file path to the text file to which the stdout and stderr will be written
-##' @return return value (0 if success)
+##' @param task.id character containing the task identifier used as prefix for the "stdout/stderr" and "freq" output files
+##' @return path to the text file to which the stdout and stderr will be written
 ##' @author Timothee Flutre
-##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}
+##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{vcs2mcmc}}, \code{\link{cleanGs3}}
 ##' @export
-execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
-  stopifnot(file.exists(config.file))
+execGs3 <- function(config.file, task.id="GS3"){
+  stopifnot(file.exists(config.file),
+            is.character(task.id))
+
+  stdouterr.file <- paste0(task.id, "_stdouterr.txt")
 
   if(Sys.info()["sysname"] == "Windows"){
-    ret <- system2(command="gs3.exe", args=c(config.file),
+    cmd <- "gs3.exe"
+    ret <- system2(command=cmd, args=c(config.file),
                    stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE,
                    invisible=FALSE)
-  } else
-    ret <- system2(command="gs3", args=c(config.file),
+  } else{
+    cmd <- "gs3"
+    ret <- system2(command=cmd, args=c(config.file),
                    stdout=stdouterr.file, stderr=stdouterr.file, wait=TRUE)
+  }
 
-  return(invisible(ret))
+  if(ret != 0){
+    msg <- paste0("'", cmd, "' returned '", ret, "'")
+    warning(msg)
+  }
+
+  if(file.exists("freq")){
+    file.rename(from="freq",
+                to=paste0(task.id, "_freq.txt"))
+  }
+
+  return(stdouterr.file)
 }
 
 ##' Load GS3 results
@@ -420,7 +453,7 @@ execGs3 <- function(config.file, stdouterr.file="gs3_stdouterr.txt"){
 ##' @author Timothee Flutre
 ##' @seealso \code{link{execGs3}}
 ##' @examples
-##' \dontrun{vcs <- vcs2mcmc(vcs.file)
+##' \dontrun{vcs <- vcs2mcmc(config$vcs.file)
 ##' summary(vcs)
 ##' coda::effectiveSize(vcs)
 ##' genos <- as.matrix(read.table(genos.file))
@@ -443,6 +476,40 @@ vcs2mcmc <- function(vcs.file){
       d[[j]] <- NULL
 
   return(coda::mcmc.list(coda::mcmc(d)))
+}
+
+##' Clean output files
+##'
+##' Remove the various output files generated by GS3.
+##' @param config list containing the configuration of the GS3 run to be cleaned
+##' @param config.file path to the text file to which the configuration for GS3 (corresponding to \code{config}) is written
+##' @param task.id character containing the task identifier used as prefix for the output files
+##' @author Timothee Flutre
+##' @export
+cleanGs3 <- function(config, config.file, task.id="GS3"){
+  stopifnot(is.list(config),
+            file.exists(config.file),
+            is.character(task.id))
+
+  ## build the list of files to remove
+  files.tormv <- c(config$vcs.file,
+                   config$sol.file,
+                   config.file,
+                   paste0(config.file, "_EBVs"),
+                   paste0(config.file, "_cont"),
+                   paste0(config.file, "_finalEstimates"))
+  files.tormv <- c(files.tormv, c(paste0(task.id, "_freq.txt"),
+                                  paste0(task.id, "_stdouterr.txt")))
+
+  ## remove the files
+  for(f in files.tormv){
+    if(file.exists(f))
+      file.remove(f)
+    else{
+      msg <- paste0(" file '", f, "' doesn't exist")
+      warning(msg)
+    }
+  }
 }
 
 ##' Partition for cross-validation
@@ -481,18 +548,211 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
   return(valid.geno.idx.per.fold)
 }
 
+##' Single fold of a cross-validation
+##'
+##' Perform a single fold of a K-fold cross-validation with GS3.
+##' @param task.id character containing the task identifier used as prefix for the output files (the fold index will be added)
+##' @param fold.ids vector of fold identifiers
+##' @param fold.id identifier of the current fold
+##' @param valid.geno.idx.per.fold vector indicating to which fold a given genotypes belongs (see \code{\link{getPartitionGenos}})
+##' @param dat data frame with phenotypes
+##' @param col.id column identifier of the records in \code{dat}
+##' @param col.trait column identifier of the trait in \code{dat}
+##' @param binary.trait logical indicating if the trait is binary or not
+##' @param genos matrix of SNP genotypes
+##' @param config list containing the generic configuration for GS3
+##' @param ped.file path to the file containing the pedigree
+##' @param remove.files remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them
+##' @param verbose verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}
+##' @return named vector with metrics
+##' @author Timothee Flutre
+##' @seealso \code{\link{crossValWithGs3}}
+##' @export
+crossValFold <- function(task.id, fold.ids, fold.id,
+                         valid.geno.idx.per.fold,
+                         dat, col.id, col.trait, binary.trait,
+                         genos, config, ped.file,
+                         remove.files, verbose){
+  out <- stats::setNames(c(fold.id, rep(NA, 7)),
+                         c("fold", "train.size", "valid.size",
+                           "rmspe", "cor.p", "cor.s",
+                           "reg.intercept", "reg.slope"))
+
+  nb.folds <- length(fold.ids)
+
+  ## set up file names
+  tif <- paste0(task.id, "-", fold.ids[fold.id])
+  dat.train.file <- paste0(tif, "_dat-train.txt")
+  geno.train.file <- paste0(tif, "_geno-train.txt")
+  dat.valid.file <- paste0(tif, "_dat-valid.txt")
+  geno.valid.file <- paste0(tif, "_geno-valid.txt")
+
+  ## training
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds,
+                 ": start training"), stdout())
+  train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
+  out["train.size"] <- length(train.genos)
+  dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
+  genos.train <- genos[train.genos,]
+  inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
+                                nm=levels(dat.train[, col.id]))
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds, ":",
+                 " nb.genos=", nrow(genos.train),
+                 " nb.snps=", ncol(genos.train),
+                 " nb.obs=", nrow(dat.train)),
+          stdout())
+  writeDataForGs3(x = dat.train,
+                  file = dat.train.file,
+                  inds = inds.train,
+                  col.id = col.id,
+                  col.traits = col.trait,
+                  binary.traits = binary.trait)
+  writeGenosForGs3(x = genos.train,
+                   file = geno.train.file,
+                   inds = inds.train)
+  config.train <- config
+  config.train$vcs.file <- sub(task.id, tif, config$vcs.file)
+  config.train$sol.file <- sub(task.id, tif, config$sol.file)
+  config.train.file <- writeConfigForGs3(config = config.train,
+                                         data.file = dat.train.file,
+                                         ped.file = ped.file,
+                                         genos.file = geno.train.file,
+                                         task.id = tif)
+  stdouterr.train.file <- execGs3(config.file = config.train.file,
+                                  task.id = tif)
+  if(FALSE) # for debugging purposes
+    stdouterr.train <- readLines(stdouterr.train.file)
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds,
+                 ": end training"), stdout())
+
+  ## validation
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds,
+                 ": start validation"), stdout())
+  valid.genos <- names(which(valid.geno.idx.per.fold == fold.id))
+  stopifnot(all(! valid.genos %in% train.genos))
+  out["valid.size"] <- length(valid.genos)
+  dat.valid <- droplevels(dat[dat[,col.id] %in% valid.genos,])
+  genos.valid <- genos[valid.genos,]
+  inds.valid <- stats::setNames(object=1:nlevels(dat.valid[, col.id]),
+                                nm=levels(dat.valid[, col.id]))
+  dat.valid.to.predict <- dat.valid
+  dat.valid.to.predict[, col.trait] <- NA
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds, ":",
+                 " nb.genos=", nrow(genos.valid),
+                 " nb.snps=", ncol(genos.valid),
+                 " nb.obs=", nrow(dat.valid)),
+          stdout())
+  writeDataForGs3(x = dat.valid.to.predict,
+                  file = dat.valid.file,
+                  inds = inds.valid,
+                  col.id = col.id,
+                  col.traits = col.trait,
+                  binary.traits = binary.trait)
+  writeGenosForGs3(x = genos.valid,
+                   file = geno.valid.file,
+                   inds = inds.valid)
+  config.valid <- config.train
+  config.valid$method <- "PREDICT"
+  config.valid.file <- writeConfigForGs3(config = config.valid,
+                                         data.file = dat.valid.file,
+                                         ped.file = ped.file,
+                                         genos.file = geno.valid.file,
+                                         task.id = tif)
+  stdouterr.valid.file <- execGs3(config.file = config.valid.file,
+                                  task.id = tif)
+  if(FALSE) # for debugging purposes
+    stdouterr.valid <- readLines(stdouterr.valid.file)
+  pred.file <- paste0(tif, "_pred.txt")
+  file.rename(from="predictions", to=pred.file)
+  if(verbose > 1)
+    write(paste0("fold ", fold.id, "/", nb.folds,
+                 ": end validation"), stdout())
+
+  ## assess accuracy
+  if(FALSE){ # for debugging purposes
+    vcs <- utils::read.table(file=config.train$vcs.file, header=TRUE,
+                             check.names=FALSE)
+    ebvs <- utils::read.table(file=paste0(config.valid.file, "_EBVs"),
+                              header=TRUE)
+    sols <- utils::read.table(file=config.train$sol.file, header=TRUE)
+  }
+  pred <- utils::read.table(file=pred.file, header=TRUE)
+  stopifnot(nrow(pred) == nrow(dat.valid))
+  pred$geno <- names(inds.valid)[match(pred$id, inds.valid)]
+  pred <- pred[order(pred$geno),]
+  dat.valid <- dat.valid[order(dat.valid[,col.id]),]
+  stopifnot(all(pred$geno == as.character(dat.valid[,col.id])))
+  out["rmspe"] <- sqrt(mean((dat.valid[, col.trait] -
+                             pred$prediction)^2))
+  out["cor.p"] <- stats::cor(x=dat.valid[, col.trait],
+                             y=pred$prediction,
+                             method="pearson")
+  out["cor.s"] <- stats::cor(x=dat.valid[, col.trait],
+                             y=pred$prediction,
+                             method="spearman")
+  fit <- stats::lm(dat.valid[, col.trait] ~ pred$prediction)
+  out["reg.intercept"] <- stats::coefficients(fit)[1]
+  out["reg.slope"] <- stats::coefficients(fit)[2]
+  if(FALSE){ # for debugging purposes
+    plot(x=pred$prediction, y=dat.valid[, col.trait],
+         main=paste0("fold ", fold.id))
+    abline(a=0, b=1, lty=2)
+    abline(v=mean(pred$prediction), lty=2)
+    abline(h=mean(dat.valid[, col.trait]), lty=2)
+    abline(fit, col="red")
+  }
+
+  ## remove temporary files
+  if(remove.files != "none"){
+    if(remove.files %in% c("some", "all")){
+      files.tormv <- c(dat.train.file,
+                       geno.train.file,
+                       config.train.file,
+                       stdouterr.train.file,
+                       config.train$vcs.file,
+                       paste0(config.train.file, "_EBVs"),
+                       paste0(config.train.file, "_cont"),
+                       dat.valid.file,
+                       geno.valid.file,
+                       config.valid.file,
+                       paste0(config.valid.file, "_EBVs"),
+                       stdouterr.valid.file,
+                       pred.file,
+                       paste0(tif, "_freq.txt"))
+    }
+    if(remove.files == "all"){
+      files.tormv <- c(files.tormv,
+                       paste0(config.train.file, "_finalEstimates"),
+                       config.train$sol.file)
+    }
+    for(f in files.tormv)
+      if(file.exists(f))
+        file.remove(f)
+  }
+
+  return(out)
+}
+
 ##' Cross-validation
 ##'
 ##' Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
 ##' Files are saved in the current directory.
 ##' @param genos matrix of SNP genotypes
-##' @param dat data.frame with phenotypes
+##' @param dat data frame with phenotypes
+##' @param config list containing the configuration for GS3
+##' @param task.id character containing the task identifier used as prefix for the output files (for each fold, its index will be added)
 ##' @param binary.trait logical
 ##' @param ped.file path to the file containing the pedigree
-##' @param config list
 ##' @param nb.folds number of folds
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
 ##' @param remove.files remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them
+##' @param nb.cores number of cores to launch folds in parallel (via \code{\link[parallel]{mclapply}}, on Unix-like computers, or \code{\link[parallel]{parLapply}} on Windows); you can also use \code{\link[parallel]{detectCores}}
+##' @param cl object returned by \code{\link[parallel]{makeCluster}}, necessary only if \code{nb.cores > 1} and the computer runs Windows; if NULL in such cases, will be created silently
 ##' @param verbose verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}
 ##' @return data.frame
 ##' @author Helene Muranty, Timothee Flutre
@@ -500,13 +760,17 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' @export
 crossValWithGs3 <- function(genos,
                             dat,
+                            config,
+                            task.id="GS3",
                             binary.trait=FALSE,
                             ped.file=NULL,
-                            config,
                             nb.folds=10,
                             seed=NULL,
                             remove.files="some",
+                            nb.cores=1,
+                            cl=NULL,
                             verbose=1){
+  requireNamespace("parallel")
   stopifnot(isValidConfig(config))
   col.id <- config$rec.id
   col.trait <- config$twc[1]
@@ -516,7 +780,17 @@ crossValWithGs3 <- function(genos,
             all(rownames(genos) %in% levels(dat[, col.id])),
             all(levels(dat[, col.id]) %in% rownames(genos)),
             nb.folds <= nrow(genos),
-            remove.files %in% c("none", "some", "all"))
+            remove.files %in% c("none", "some", "all"),
+            is.character(task.id),
+            length(task.id) == 1,
+            is.numeric(nb.cores),
+            nb.cores > 0)
+
+  wasClCreated <- FALSE
+  if(all(nb.cores > 1, Sys.info()["sysname"] == "Windows", is.null(cl))){
+    wasClCreated <- TRUE
+    cl <- parallel::makeCluster(nb.cores)
+  }
 
   ## prepare output
   out <- data.frame(fold=1:nb.folds,
@@ -538,178 +812,37 @@ crossValWithGs3 <- function(genos,
                                                seed=seed)
   stopifnot(! any(duplicated(names(valid.geno.idx.per.fold))))
 
-  ## cross-validation
+  ## perform cross-validation
   fold.ids <- sprintf(fmt=paste0("%0", floor(log10(nb.folds))+1, "i"),
                       1:nb.folds)
-  if(verbose == 1)
-    pb <- utils::txtProgressBar(min=0, max=nb.folds, style=3)
-  for(fold.id in seq(nb.folds)){ # for each fold
-    if(verbose == 1)
-      utils::setTxtProgressBar(pb, fold.id)
-
-    ## set up file names
-    dat.train.file <- paste0("dat_train_gs3_fold", fold.ids[fold.id],
-                             ".txt")
-    geno.train.file <- paste0("geno_train_gs3_fold", fold.ids[fold.id],
-                              ".txt")
-    config.train.file <- paste0("config_train_gs3_fold", fold.ids[fold.id],
-                                ".txt")
-    stdouterr.train.file <- paste0("stdouterr_train_gs3_fold",
-                                   fold.ids[fold.id], ".txt")
-    dat.valid.file <- paste0("dat_valid_gs3_fold", fold.ids[fold.id],
-                             ".txt")
-    geno.valid.file <- paste0("geno_valid_gs3_fold", fold.ids[fold.id],
-                              ".txt")
-    config.valid.file <- paste0("config_valid_gs3_fold", fold.ids[fold.id],
-                                ".txt")
-    stdouterr.valid.file <- paste0("stdouterr_valid_gs3_fold",
-                                   fold.ids[fold.id], ".txt")
-
-    ## training
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds,
-                   ": start training"), stdout())
-    train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
-    out$train.size[fold.id] <- length(train.genos)
-    dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
-    genos.train <- genos[train.genos,]
-    inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
-                                  nm=levels(dat.train[, col.id]))
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds, ":",
-                   " nb.genos=", nrow(genos.train),
-                   " nb.snps=", ncol(genos.train),
-                   " nb.obs=", nrow(dat.train)),
-            stdout())
-    writeDataForGs3(x = dat.train,
-                    file = dat.train.file,
-                    inds = inds.train,
-                    col.id = col.id,
-                    col.traits = col.trait,
-                    binary.traits = binary.trait)
-    writeGenosForGs3(x = genos.train,
-                     file = geno.train.file,
-                     inds = inds.train)
-    config.train <- config
-    config.train$vcs.file <- paste0(config$vcs.file, "_fold", fold.id)
-    config.train$sol.file <- paste0(config$sol.file, "_fold", fold.id)
-    writeConfigForGs3(config = config.train,
-                      config.file = config.train.file,
-                      data.file = dat.train.file,
-                      ped.file = ped.file,
-                      genos.file = geno.train.file)
-    execGs3(config.file=config.train.file,
-            stdouterr.file=stdouterr.train.file)
-    if(FALSE) # for debugging purposes
-      stdouterr.train <- readLines(stdouterr.train.file)
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds,
-                   ": end training"), stdout())
-
-    ## validation
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds,
-                   ": start validation"), stdout())
-    valid.genos <- names(which(valid.geno.idx.per.fold == fold.id))
-    stopifnot(all(! valid.genos %in% train.genos))
-    out$valid.size[fold.id] <- length(valid.genos)
-    dat.valid <- droplevels(dat[dat[,col.id] %in% valid.genos,])
-    genos.valid <- genos[valid.genos,]
-    inds.valid <- stats::setNames(object=1:nlevels(dat.valid[, col.id]),
-                                  nm=levels(dat.valid[, col.id]))
-    dat.valid.to.predict <- dat.valid
-    dat.valid.to.predict[, col.trait] <- NA
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds, ":",
-                   " nb.genos=", nrow(genos.valid),
-                   " nb.snps=", ncol(genos.valid),
-                   " nb.obs=", nrow(dat.valid)),
-            stdout())
-    writeDataForGs3(x = dat.valid.to.predict,
-                    file = dat.valid.file,
-                    inds = inds.valid,
-                    col.id = col.id,
-                    col.traits = col.trait,
-                    binary.traits = binary.trait)
-    writeGenosForGs3(x = genos.valid,
-                     file = geno.valid.file,
-                     inds = inds.valid)
-    config.valid <- config.train
-    config.valid$method <- "PREDICT"
-    writeConfigForGs3(config = config.valid,
-                      config.file = config.valid.file,
-                      data.file = dat.valid.file,
-                      ped.file = ped.file,
-                      genos.file = geno.valid.file)
-    execGs3(config.file=config.valid.file,
-            stdouterr.file=stdouterr.valid.file)
-    if(FALSE) # for debugging purposes
-      stdouterr.valid <- readLines(stdouterr.valid.file)
-    pred.file <- paste0("predictions_fold", fold.id)
-    file.rename(from="predictions", to=pred.file)
-    if(verbose > 1)
-      write(paste0("fold ", fold.id, "/", nb.folds,
-                   ": end validation"), stdout())
-
-    ## assess accuracy
-    if(FALSE){ # for debugging purposes
-      vcs <- utils::read.table(file=config.train$vcs.file, header=TRUE)
-      ebvs <- utils::read.table(file=paste0(config.valid.file, "_EBVs"),
-                                header=TRUE)
-      sols <- utils::read.table(file=config.train$sol.file, header=TRUE)
-    }
-    pred <- utils::read.table(file=pred.file, header=TRUE)
-    stopifnot(nrow(pred) == nrow(dat.valid))
-    pred$geno <- names(inds.valid)[match(pred$id, inds.valid)]
-    pred <- pred[order(pred$geno),]
-    dat.valid <- dat.valid[order(dat.valid[,col.id]),]
-    stopifnot(all(pred$geno == as.character(dat.valid[,col.id])))
-    out$rmspe[fold.id] <- sqrt(mean((dat.valid[, col.trait] -
-                                     pred$prediction)^2))
-    out$cor.p[fold.id] <- stats::cor(x=dat.valid[, col.trait],
-                                     y=pred$prediction,
-                                     method="pearson")
-    out$cor.s[fold.id] <- stats::cor(x=dat.valid[, col.trait],
-                                     y=pred$prediction,
-                                     method="spearman")
-    fit <- stats::lm(dat.valid[, col.trait] ~ pred$prediction)
-    out$reg.intercept[fold.id] <- stats::coefficients(fit)[1]
-    out$reg.slope[fold.id] <- stats::coefficients(fit)[2]
-    if(FALSE){ # for debugging purposes
-      plot(x=pred$prediction, y=dat.valid[, col.trait],
-           main=paste0("fold ", fold.id))
-      abline(a=0, b=1, lty=2)
-      abline(v=mean(pred$prediction), lty=2)
-      abline(h=mean(dat.valid[, col.trait]), lty=2)
-      abline(fit, col="red")
-    }
-
-    ## remove temporary files
-    if(remove.files != "none"){
-      if(remove.files %in% c("some", "all")){
-        file.remove(dat.train.file,
-                    geno.train.file,
-                    config.train.file,
-                    stdouterr.train.file,
-                    config.train$vcs.file,
-                    paste0(config.train.file, "_EBVs"),
-                    dat.valid.file,
-                    geno.valid.file,
-                    config.valid.file,
-                    paste0(config.valid.file, "_EBVs"),
-                    stdouterr.valid.file,
-                    pred.file,
-                    "freq")
-        if(file.exists(paste0(config.train.file, "_cont")))
-          file.remove(paste0(config.train.file, "_cont"))
-      }
-      if(remove.files == "all"){
-        file.remove(config.train$sol.file)
-      }
-    }
+  ## out <- lapply(seq(nb.folds), function(fold.id){
+  ##   crossValFold(task.id, fold.ids, fold.id,
+  ##                valid.geno.idx.per.fold,
+  ##                dat, col.id, col.trait, binary.trait,
+  ##                genos, config, ped.file,
+  ##                remove.files, verbose)
+  ## })
+  if(Sys.info()["sysname"] == "Windows"){
+    out <- parallel::parLapply(cl, seq(nb.folds), function(fold.id){
+      crossValFold(task.id, fold.ids, fold.id,
+                   valid.geno.idx.per.fold,
+                   dat, col.id, col.trait, binary.trait,
+                   genos, config, ped.file,
+                   remove.files, verbose)
+    })
+  } else{
+    out <- parallel::mclapply(seq(nb.folds), function(fold.id){
+      crossValFold(task.id, fold.ids, fold.id,
+                   valid.geno.idx.per.fold,
+                   dat, col.id, col.trait, binary.trait,
+                   genos, config, ped.file,
+                   remove.files, verbose)
+    }, mc.cores=nb.cores)
   }
-  if(verbose == 1)
-    close(pb)
+  out <- do.call(rbind, out)
+
+  if(wasClCreated)
+    parallel::stopCluster(cl)
 
   return(out)
 }

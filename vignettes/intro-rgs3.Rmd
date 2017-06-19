@@ -53,7 +53,7 @@ if("package:rgs3" %in% search())
 ```
 
 ```{r load_pkg}
-library(rgs3)
+suppressPackageStartupMessages(library(rgs3))
 packageVersion("rgs3")
 ```
 
@@ -208,10 +208,9 @@ hist(mafs, breaks="FD", main="Minor allele frequencies",
      col="grey", border="white", xlim=c(0, 0.5), las=1)
 ```
 
-We can also have a quick look at the additive genomic relationships:
+We can also have a quick look at the additive genetic relationships:
 
 ```{r plot_G}
-afs <- colMeans(genos) / 2
 M <- genos - 1
 Pmat <- matrix(rep(1,nrow(genos))) %*% (2 * (afs - 0.5))
 Z <- M - Pmat
@@ -260,6 +259,12 @@ The estimates are quite close from the "true" values (i.e. those used to simulat
 
 # Write the data into files formatted for GS3
 
+Let us choose an identifier for our analysis, which will be used for all files, so that it will be easy to remove them at the end:
+
+```{r task_id}
+task.id <- "intro-rgs3"
+```
+
 Encode the individual identifiers as consecutive numbers from $1$ to $I$:
 
 ```{r code_inds}
@@ -271,7 +276,7 @@ head(inds)
 Write the phenotype file in the GS3 format:
 
 ```{r write_phenos}
-phenos.file.gs3 <- paste0(getwd(), "/phenos_gs3.txt")
+phenos.file.gs3 <- paste0(getwd(), "/", task.id, "_phenos.txt")
 writeDataForGs3(x=phenos, file=phenos.file.gs3, inds=inds, col.id=2,
                 col.traits=3, binary.traits=FALSE)
 ```
@@ -279,7 +284,7 @@ writeDataForGs3(x=phenos, file=phenos.file.gs3, inds=inds, col.id=2,
 Write the genotype file in the GS3 format:
 
 ```{r write_genos}
-genos.file.gs3 <- paste0(getwd(), "/genos_gs3.txt")
+genos.file.gs3 <- paste0(getwd(), "/", task.id, "_genos.txt")
 writeGenosForGs3(x=genos, file=genos.file.gs3, inds=inds)
 ```
 
@@ -289,19 +294,12 @@ writeGenosForGs3(x=genos, file=genos.file.gs3, inds=inds)
 Write the configuration file for GS3 (you can also use the helper function `getDefaultConfig`):
 
 ```{r write_config}
-config.file <- paste0(getwd(), "/config_gs3_vce.txt")
 (ptl <- data.frame(position=c(which(colnames(phenos) == "year"),
                               ncol(phenos) + 1),
-                              ## ncol(phenos) + 1),
-                              ## which(colnames(phenos) == "geno")),
                    type=c("cross",
                           "add_SNP"),
-                          ## "dom_SNP"),
-                          ## "perm_diagonal"),
                    nlevels=c(Q,
                              0),
-                             ## 0),
-                             ## I),
                    stringsAsFactors=FALSE))
 config <- list(num.loci=P,
                method="VCE",
@@ -311,8 +309,8 @@ config <- list(num.loci=P,
                thin=10,
                conv.crit="1d-8",
                correct=1000,
-               vcs.file=paste0(getwd(), "/var_comp_samples.txt"),
-               sol.file=paste0(getwd(), "/solutions.txt"),
+               vcs.file=paste0(getwd(), "/", task.id, "var.txt"),
+               sol.file=paste0(getwd(), "/", task.id, "sol.txt"),
                twc=c(which(colnames(phenos) == "response1"), 0),
                num.eff=nrow(ptl),
                ptl=ptl,
@@ -328,11 +326,11 @@ config <- list(num.loci=P,
                use.mix="F",
                blasso=FALSE)
 isValidConfig(config=config)
-writeConfigForGs3(config=config,
-                  data.file=phenos.file.gs3,
-                  ped.file=NULL,
-                  genos.file=genos.file.gs3,
-                  config.file=config.file)
+config.file <- writeConfigForGs3(config=config,
+                                 data.file=phenos.file.gs3,
+                                 ped.file=NULL,
+                                 genos.file=genos.file.gs3,
+                                 task.id=task.id)
 ```
 
 Here is how the resulting configuration file looks like:
@@ -344,15 +342,16 @@ readLines(config.file)
 Execute GS3:
 
 ```{r exec_gs3}
-stdouterr.file <- paste0(getwd(), "/intro_stdouterr_gs3.txt")
-system.time(retVal <- execGs3(config.file, stdouterr.file))
-message(paste0("return value = ", retVal)) # "0" means "success"
+system.time(
+    stdouterr.file <- execGs3(config.file, task.id))
 ```
 
 The GS3 program outputs some messages (too long to display here):
 
 ```{r stdouterr}
 stdouterr <- readLines(stdouterr.file)
+head(stdouterr)
+length(stdouterr)
 ```
 
 
@@ -364,13 +363,13 @@ But we won't use this function in this vignette as `coda` may not be available.
 Load the variance components' samples:
 
 ```{r load_vcs}
-vcs <- read.table(config$vcs.file, header=TRUE)
+vcs <- read.table(config$vcs.file, header=TRUE, check.names=FALSE)
 str(vcs)
 ```
 
 Assess convergence visually, at least for some parameters:
 
-```{r vcs_conv, fig.width=7}
+```{r vcs_conv, fig.width=8}
 par(mfrow=c(1,2), mar=c(4,4,2,1))
 for(vc in c("vara","vare")){
   plot(vcs[,vc], las=1,
@@ -404,9 +403,9 @@ message(paste0("posterior mean of sigma.a2 = ",
 message(paste0("posterior sd of sigma.a2 = ",
                sd(vcs[idx.tokeep, "vara"])))
 message(paste0("posterior mean of '2varapqpi' = ",
-               mean(vcs[idx.tokeep, "X2varapqpi"])))
+               mean(vcs[idx.tokeep, "2varapqpi"])))
 message(paste0("posterior sd of '2varapqpi' = ",
-               sd(vcs[idx.tokeep, "X2varapqpi"])))
+               sd(vcs[idx.tokeep, "2varapqpi"])))
 ```
 
 The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes, see section "Simulation" above).
@@ -425,7 +424,8 @@ table(sols$effect)
 
 * The remaining `r nrow(sols)-Q` rows correspond to the additive effects of the `r P` SNP genotypes.
 
-```{r plot_snp-add, fig.width=5}
+```{r plot_snp-add, fig.width=8}
+summary(sols$solution[sols$effect == 2])
 lim <- max(abs(sols$solution[sols$effect == 2]))
 par(mar=c(2,4,2,1))
 hist(sols$solution[sols$effect == 2], breaks="FD", xlim=c(-lim, lim),
@@ -458,7 +458,7 @@ head(ebvs)
 * The last column, `g_overall`, corresponds to the estimated "generalized" genomic breeding value, that is, the sum of the three previous columns.
 
 We can have a quick look at the distribution of these gEBVs:
-```{r plot_gEBVs, fig.width=5}
+```{r plot_gEBVs, fig.width=8}
 summary(ebvs$g_overall)
 lim <- max(abs(ebvs$g_overall))
 par(mar=c(2,4,2,1))
@@ -504,9 +504,8 @@ abline(h=0, v=0, a=0, b=1, lty=2); abline(accuracy.GS3, col="red")
 # Remove output files
 
 ```{r rmv_out_files}
-for(f in c(config.file, phenos.file.gs3, genos.file.gs3, stdouterr.file,
-           "config_gs3_vce.txt_EBVs", "config_gs3_vce.txt_cont", "freq",
-           "solutions.txt", "var_comp_samples.txt"))
+cleanGs3(config, config.file, task.id)
+for(f in c(phenos.file.gs3, genos.file.gs3))
   if(file.exists(f))
     file.remove(f)
 ```

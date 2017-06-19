@@ -5,18 +5,24 @@
 \title{Default configuration}
 \usage{
 getDefaultConfig(nb.snps = NA, method = "VCE", ptl = NULL, twc = NA,
-  rec.id = NA)
+  rec.id = NA, use.mix = "F", blasso = FALSE, task.id = "GS3")
 }
 \arguments{
-\item{nb.snps}{number of SNPs}
+\item{nb.snps}{number of SNPs in the SNP genotype file}
 
-\item{method}{BLUP/MCMCBLUP/VCE/PREDICT}
+\item{method}{character with the method to use, among BLUP/MCMCBLUP/VCE/PREDICT}
 
-\item{ptl}{data.frame indicating, for each effect, its position in the data file, its type, and its number of levels}
+\item{ptl}{data frame indicating, for each effect, its position in the data file, its type, and its number of levels}
 
-\item{twc}{vector}
+\item{twc}{numeric vector containing the column index of the trait of interest in the data file, as well as the column index of its weights (0 if no weight)}
 
-\item{rec.id}{numeric}
+\item{rec.id}{numeric corresponding to the column index of the genotype identifiers in the data file}
+
+\item{use.mix}{character indicating by \code{"T"} (or \code{"F"}) if the BayesCPi model should be fitted (or not)}
+
+\item{blasso}{logical indicating if the Bayesian Lasso model should be fitted (requires \code{method="VCE"} and \code{use.mix="F"})}
+
+\item{task.id}{character containing the task identifier used as prefix for the output files}
 }
 \value{
 list

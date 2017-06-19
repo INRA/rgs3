@@ -39,7 +39,7 @@ knitr::opts_chunk$set(fig.align="center")
 
 Load the `rgs3` package (available [here](https://github.com/INRA/rgs3)):
 ```{r load_pkg}
-library(rgs3)
+suppressPackageStartupMessages(library(rgs3))
 packageVersion("rgs3")
 ```
 
@@ -82,6 +82,12 @@ dim(genos)
 
 # Set up the configuration
 
+Let us choose an identifier for our analysis, which will be used for all files, so that it will be easy to remove them at the end:
+
+```{r task_id}
+task.id <- "crossval-rgs3"
+```
+
 Use the utility function:
 
 ```{r config_from_default}
@@ -97,7 +103,8 @@ config <- getDefaultConfig(
     rec.id = which(colnames(phenos) == "geno"),
     twc = c(which(colnames(phenos) == "response1"), 0),
     method = "VCE",
-    ptl = ptl)
+    ptl = ptl,
+    task.id = task.id)
 ```
 
 Customize the rest:
@@ -118,17 +125,19 @@ Note that the number of iterations here is voluntarily low, so that the vignette
 
 # Perform K-fold cross-validation
 
-Let's use 5 folds for this vignette:
+Let's use 5 folds for this vignette (and run in parallel with 2 cores, if available):
 
 ```{r cv}
 results.cv <- crossValWithGs3(
     genos = genos,
     dat = phenos,
+    config = config,
+    task.id = task.id,
     ped.file = NULL,
     nb.folds = 5,
-    config = config,
     seed = 123,
     remove.files = "all", # use "some" in real-life applications
+    nb.cores = 2,
     verbose = 2)
 ```
 

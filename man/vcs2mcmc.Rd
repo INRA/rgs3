@@ -16,7 +16,7 @@ vcs2mcmc(vcs.file)
 Read the file containing the variance components' samples into a \code{\link[coda]{mcmc.list}} object.
 }
 \examples{
-\dontrun{vcs <- vcs2mcmc(vcs.file)
+\dontrun{vcs <- vcs2mcmc(config$vcs.file)
 summary(vcs)
 coda::effectiveSize(vcs)
 genos <- as.matrix(read.table(genos.file))

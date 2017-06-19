@@ -5,7 +5,7 @@
 \title{Write configuration}
 \usage{
 writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
-  config.file)
+  task.id = "GS3")
 }
 \arguments{
 \item{config}{list containing the configuration for GS3 via the following components:
@@ -39,10 +39,10 @@ writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
 
 \item{genos.file}{path to the text file with the genotypes}
 
-\item{config.file}{path to the text file to which the configuration for GS3 will be written}
+\item{task.id}{character containing the task identifier used as prefix for the configuration file; will be followed by \code{"_config.txt"}}
 }
 \value{
-nothing
+path to the text file to which the configuration for GS3 will be written
 }
 \description{
 Write the configuration file for GS3.
