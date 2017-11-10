@@ -8,7 +8,7 @@ writeDataForGs3(x, file, inds, col.id = 1, col.traits = 2,
   binary.traits = FALSE)
 }
 \arguments{
-\item{x}{data.frame containing individual identifiers (names of parameter "inds"), trait values (possibly several traits), covariables and cross-classified factors. Missing data coded as "NA" will be replaced by "0" if it is in a 'trait' column and the trait is binary, and by "-9999" otherwise.}
+\item{x}{data frame containing individual identifiers (names of parameter "inds"), trait values (possibly several traits), covariables and cross-classified factors. Missing data coded as "NA" will be replaced by "0" if it is in a 'trait' column and the trait is binary, and by "-9999" otherwise.}
 
 \item{file}{path to the text file to which x will be written}
 

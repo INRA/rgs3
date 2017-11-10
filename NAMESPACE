@@ -2,6 +2,7 @@
 
 export(cleanGs3)
 export(crossValFold)
+export(crossValRepWithGs3)
 export(crossValWithGs3)
 export(execGs3)
 export(getDefaultConfig)

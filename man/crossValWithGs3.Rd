@@ -5,8 +5,8 @@
 \title{Cross-validation}
 \usage{
 crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
-  ped.file = NULL, nb.folds = 10, seed = NULL, remove.files = "some",
-  nb.cores = 1, cl = NULL, verbose = 1)
+  ped.file = NULL, rep.id = 1, nb.folds = 10, seed = NULL,
+  remove.files = "some", nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
 \item{genos}{matrix of SNP genotypes}
@@ -21,6 +21,8 @@ crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
 
 \item{ped.file}{path to the file containing the pedigree}
 
+\item{rep.id}{identifier of the current replicate}
+
 \item{nb.folds}{number of folds}
 
 \item{seed}{if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold}
@@ -34,14 +36,14 @@ crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
 \item{verbose}{verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}}
 }
 \value{
-data.frame
+data frame
 }
 \description{
 Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
 Files are saved in the current directory.
 }
 \seealso{
-\code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
+\code{\link{crossValRepWithGs3}}, \code{\link{getDefaultConfig}}, \code{\link{writeConfigForGs3}}, \code{\link{execGs3}}, \code{\link{getPartitionGenos}}
 }
 \author{
 Helene Muranty, Timothee Flutre

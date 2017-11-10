@@ -29,9 +29,20 @@
                 "\nLicense GNU GPL version 3 or later")
   packageStartupMessage(msg)
 
+  ## check that GS3 is installed
   exec.name <- "gs3"
   if(Sys.info()["sysname"] == "Windows")
     exec.name <- "gs3.exe"
-  if(! file.exists(Sys.which(exec.name)))
+  if(! file.exists(Sys.which(exec.name))){
     warning(paste0("can't find '", exec.name, "' in your PATH"))
+  } else{
+    ## check its version
+    min.gs3.version <- "2.6.1"
+    ret <- suppressWarnings(system2(command="gs3", args=c("dummyfile"),
+                                    stdout=TRUE, stderr=FALSE))
+    gs3.version <- trimws(ret[grep("        GS3        ", ret) + 1])
+    if(utils::compareVersion(min.gs3.version, gs3.version) == 1)
+      warning(paste0("installed GS3 is ", gs3.version,
+                     " but should be >= ", min.gs3.version))
+  }
 }

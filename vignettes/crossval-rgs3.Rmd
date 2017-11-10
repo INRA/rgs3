@@ -136,7 +136,7 @@ results.cv <- crossValWithGs3(
     ped.file = NULL,
     nb.folds = 5,
     seed = 123,
-    remove.files = "all", # use "some" in real-life applications
+    remove.files = "none", # use "some" in real-life applications
     nb.cores = 2,
     verbose = 2)
 ```
@@ -146,8 +146,12 @@ results.cv <- crossValWithGs3(
 
 ```{r}
 results.cv
+apply(results.cv[,c("rmspe","cor.p","reg.intercept","reg.slope")], 2, function(x){
+  c(mean=mean(x), sd=sd(x))
+})
 ```
 
+It is also possible to have multiple replicates, using the function `crossValRepWithGs3`.
 
 
 # Appendix

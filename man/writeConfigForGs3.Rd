@@ -22,8 +22,8 @@ writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
   \item{sol.file}{path to the text file to which the solutions will be written}
   \item{twc}{2-element vector which first element corresponds to the column index of the trait values in the data file, and the second to the column index of the weights in the data file (use 0 if no weight)}
   \item{num.eff}{number of effects}
-  \item{ptl}{3-column data.frame indicating, for each covariable/factor, its position (column) in the data file, type of effect and number of levels}
-  \item{vc}{3-column data.frame indicating, for each variance component, its expected value and degrees of freedom}
+  \item{ptl}{3-column data frame indicating, for each covariable/factor, its position (column) in the data file, type of effect and number of levels}
+  \item{vc}{3-column data frame indicating, for each variance component, its expected value and degrees of freedom}
   \item{rec.id}{1-element vector indicating the column in the data file corresponding to the genotype identifiers}
   \item{cont}{vector with T or F indicating if the MCMC run is a continuation of a previous, interrupted one}
   \item{mod}{vector with T or F for each covariable/factor indicating if it has to be included or not in the model}

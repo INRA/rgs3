@@ -4,11 +4,14 @@
 \alias{crossValFold}
 \title{Single fold of a cross-validation}
 \usage{
-crossValFold(task.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat, col.id,
-  col.trait, binary.trait, genos, config, ped.file, remove.files, verbose)
+crossValFold(task.id, rep.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat,
+  col.id, col.trait, binary.trait, genos, config, ped.file, remove.files,
+  verbose = 1)
 }
 \arguments{
 \item{task.id}{character containing the task identifier used as prefix for the output files (the fold index will be added)}
+
+\item{rep.id}{identifier of the current replicate}
 
 \item{fold.ids}{vector of fold identifiers}
 
@@ -32,7 +35,7 @@ crossValFold(task.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat, col.id,
 
 \item{remove.files}{remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them}
 
-\item{verbose}{verbosity level (0/1/2); there will be a progress bar only for \code{verbose=1}}
+\item{verbose}{verbosity level (0/1/2)}
 }
 \value{
 named vector with metrics
