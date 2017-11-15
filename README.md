@@ -8,7 +8,7 @@ The `rgs3` package is available under a free software license, the [GNU Public L
 See the COPYING file for details.
 The copyright is owned by the [INRA](http://www.inra.fr).
 
-The content of this directory is versioned using [git](https://en.wikipedia.org/wiki/Git_(software)), the central repository being hosted [here](https://github.com/INRA/rgs3), on [GitHub](https://en.wikipedia.org/wiki/GitHub).
+The content of this directory is versioned using [git](https://en.wikipedia.org/wiki/Git_(software)), the central repository being hosted [here](https://github.com/INRA/rgs3), on [GitHub](https://en.wikipedia.org/wiki/GitHub), and the institutional repository being hosted [there](https://sourcesup.renater.fr/projects/rgs3/), on [SourceSup](https://sourcesup.renater.fr/).
 
 
 ## Installation
