@@ -352,18 +352,18 @@ writeConfigForGs3 <- function(config,
   txt <- paste0(txt, "\nGENOTYPE FILE",
                 "\n", genos.file)
   txt <- paste0(txt, "\nNUMBER OF LOCI (might be 0)",
-                "\n", config$num.loci)
+                "\n", sprintf("%i", config$num.loci))
   txt <- paste0(txt, "\nMETHOD (BLUP/MCMCBLUP/VCE/PREDICT)",
                 "\n", config$method)
   txt <- paste0(txt, "\nSIMULATION",
                 "\n", config$simul)
   txt <- paste0(txt, "\nGIBBS SAMPLING PARAMETERS")
   txt <- paste0(txt, "\nNITER",
-                "\n", config$niter)
+                "\n", sprintf("%i", config$niter))
   txt <- paste0(txt, "\nBURNIN",
-                "\n", config$burnin)
+                "\n", sprintf("%i", config$burnin))
   txt <- paste0(txt, "\nTHIN",
-                "\n", config$thin)
+                "\n", sprintf("%i", config$thin))
   txt <- paste0(txt, "\nCONV_CRIT (MEANINGFUL IF BLUP)",
                 "\n", config$conv.crit)
   txt <- paste0(txt, "\nCORRECTION (to avoid numerical problems)",
@@ -564,8 +564,8 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                          dat, col.id, col.trait, binary.trait,
                          genos, config, ped.file,
                          remove.files, verbose=1){
-  out <- stats::setNames(c(fold.id, rep(NA, 7)),
-                         c("fold", "train.size", "valid.size",
+  out <- stats::setNames(c(fold.id, rep(NA, 8)),
+                         c("fold", "train.size", "nb.obs", "valid.size",
                            "rmspe", "cor.p", "cor.s",
                            "reg.intercept", "reg.slope"))
 
@@ -591,6 +591,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
   out["train.size"] <- length(train.genos)
   dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
+  out["nb.obs"] <- sum(! is.na(dat.train[, col.trait]))
   genos.train <- genos[train.genos,]
   inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
                                 nm=levels(dat.train[, col.id]))
@@ -598,7 +599,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds, ":",
                   " nb.genos=", nrow(genos.train),
                   " nb.snps=", ncol(genos.train),
-                  " nb.obs=", nrow(dat.train))
+                  " nb.obs=", sum(! is.na(dat.train[, col.trait])))
     write(msg, stdout())
   }
   writeDataForGs3(x = dat.train,
@@ -647,7 +648,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds, ":",
                   " nb.genos=", nrow(genos.valid),
                   " nb.snps=", ncol(genos.valid),
-                  " nb.obs=", nrow(dat.valid))
+                  " nb.pred=", nrow(dat.valid))
     write(msg, stdout())
   }
   writeDataForGs3(x = dat.valid.to.predict,
@@ -691,17 +692,21 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   }
   pred <- utils::read.table(file=pred.file, header=TRUE)
   stopifnot(nrow(pred) == nrow(dat.valid))
+  stopifnot(colnames(pred) == c("id", "true", "prediction"))
   pred$geno <- names(inds.valid)[match(pred$id, inds.valid)]
   pred <- pred[order(pred$geno),]
   dat.valid <- dat.valid[order(dat.valid[,col.id]),]
   stopifnot(all(pred$geno == as.character(dat.valid[,col.id])))
+  ## note that some phenotypes (dat.valid[, col.trait]) can be missing
   out["rmspe"] <- sqrt(mean((dat.valid[, col.trait] -
-                             pred$prediction)^2))
+                             pred$prediction)^2, na.rm=TRUE))
   out["cor.p"] <- stats::cor(x=dat.valid[, col.trait],
                              y=pred$prediction,
+                             use="complete.obs",
                              method="pearson")
   out["cor.s"] <- stats::cor(x=dat.valid[, col.trait],
                              y=pred$prediction,
+                             use="complete.obs",
                              method="spearman")
   fit <- stats::lm(dat.valid[, col.trait] ~ pred$prediction)
   out["reg.intercept"] <- stats::coefficients(fit)[1]
