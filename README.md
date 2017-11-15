@@ -8,7 +8,7 @@ The `rgs3` package is available under a free software license, the [GNU Public L
 See the COPYING file for details.
 The copyright is owned by the [INRA](http://www.inra.fr).
 
-The content of this directory is versioned using [git](https://en.wikipedia.org/wiki/Git_(software)), the central repository being hosted on [here](https://github.com/INRA/rgs3), on [GitHub](https://en.wikipedia.org/wiki/GitHub).
+The content of this directory is versioned using [git](https://en.wikipedia.org/wiki/Git_(software)), the central repository being hosted [here](https://github.com/INRA/rgs3), on [GitHub](https://en.wikipedia.org/wiki/GitHub).
 
 
 ## Installation
@@ -16,7 +16,7 @@ The content of this directory is versioned using [git](https://en.wikipedia.org/
 Before installing the `rgs3` package, the latest version of the GS3 program should already be installed on your computer.
 More precisely, the executable should be present in your [PATH](https://en.wikipedia.org/wiki/PATH_%28variable%29), under the name `gs3` for Unix-like operating systems (GNU/Linux, Mac OS) and `gs3.exe` for Microsoft Windows.
 
-* On Unix-like operating systems, you can save the executable in a new directory named `bin` in your home, and then add the path to this new directory to the environment variable `PATH` (use your `~/.bash_profile`).
+* On Unix-like operating systems, you can save the executable in a new directory named `bin` in your [home directory](https://en.wikipedia.org/wiki/Home_directory), and then add the path to this new directory to the environment variable `PATH` (use your `~/.bash_profile`).
 
 * On Windows, you can save the executable in a new directory named `GS3`, for instance in `C:\Program Files`, and then add the path to this new directory to the environment variable `Path` (go to `Configuration parameters -> System -> Advanced`, or something similar).
 
@@ -26,7 +26,7 @@ To check if the executable is found in your PATH, open a new R session, and call
 Then, to install the `rgs3` package, the easiest is to install it directly from GitHub.
 Open an R session and run the following commands:
 ```
-library(devtools)
+library(devtools) # can be installed from the CRAN
 install_github("INRA/rgs3", build_vignettes=TRUE)
 ```
 
@@ -70,7 +70,7 @@ Remember to copy-paste the output of ` sessionInfo()` to help efficiently diagno
 
 You can contribute in various ways:
 
-* report an issue (online, see above section);
+* report an issue (online, see the above section);
 
 * suggest improvements (in the same way as issues);
 
