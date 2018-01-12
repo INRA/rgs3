@@ -13,7 +13,7 @@ The content of this directory is versioned using [git](https://en.wikipedia.org/
 
 ## Installation
 
-Before installing the `rgs3` package, the latest version of the GS3 program should already be installed on your computer.
+Before installing the `rgs3` package, the latest version of the GS3 program should already be installed on your computer (see on [GitHub](https://github.com/alegarra/gs3/releases/latest)).
 More precisely, the executable should be present in your [PATH](https://en.wikipedia.org/wiki/PATH_%28variable%29), under the name `gs3` for Unix-like operating systems (GNU/Linux, Mac OS) and `gs3.exe` for Microsoft Windows.
 
 * On Unix-like operating systems, you can save the executable in a new directory named `bin` in your [home directory](https://en.wikipedia.org/wiki/Home_directory), and then add the path to this new directory to the environment variable `PATH` (use your `~/.bash_profile`).

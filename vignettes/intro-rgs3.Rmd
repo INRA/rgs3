@@ -65,7 +65,7 @@ t0 <- proc.time()
 
 # Model
 
-To know exactly what the GS3 program can do, it is strongly advised to also read the GS3 [manual](http://snp.toulouse.inra.fr/~alegarra/manualgs3_last.pdf) as this introduction doesn't show all possible ways to use it.
+To know exactly what the GS3 program can do, it is strongly advised to also read the GS3 manual (the latest version should be on [GitHub](https://github.com/alegarra/gs3/tree/master/manual)) as this introduction doesn't show all possible ways to use it.
 
 Notations:
 
