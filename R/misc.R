@@ -1,4 +1,4 @@
-## Copyright 2016,2017 Institut National de la Recherche Agronomique (INRA)
+## Copyright 2016-2018 Institut National de la Recherche Agronomique (INRA)
 ##
 ## This file is part of rgs3.
 ##
@@ -25,7 +25,7 @@
   msg <- paste0("package '", pkgname,
                 "' (version ", utils::packageVersion(pkgname), ")",
                 " is loaded",
-                "\nCopyright 2016,2017 Institut National de la Recherche Agronomique (INRA)",
+                "\nCopyright 2016-2018 Institut National de la Recherche Agronomique (INRA)",
                 "\nLicense GNU GPL version 3 or later")
   packageStartupMessage(msg)
 

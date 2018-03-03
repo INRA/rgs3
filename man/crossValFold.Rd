@@ -5,7 +5,7 @@
 \title{Single fold of a cross-validation}
 \usage{
 crossValFold(task.id, rep.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat,
-  col.id, col.trait, binary.trait, genos, config, ped.file, remove.files,
+  col.id, col.trait, binary.trait, genos, config, ped.file, afs, remove.files,
   verbose = 1)
 }
 \arguments{
@@ -32,6 +32,8 @@ crossValFold(task.id, rep.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat,
 \item{config}{list containing the generic configuration for GS3}
 
 \item{ped.file}{path to the file containing the pedigree}
+
+\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability}
 
 \item{remove.files}{remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them}
 

@@ -4,12 +4,12 @@ citEntry(entry  = "Manual",
          title  = paste("rgs3:", packageDescription("rgs3")$Title),
          author = personList(as.person("Timothée Flutre"),
                              as.person("Hélène Muranty")),
-         year   = "2017",
+         year   = "2018",
          note   = paste("R package version", packageVersion("rgs3")),
          url    = "https://github.com/INRA/rgs3",
 
          textVersion =
-           paste("Timothée Flutre, Hélène Muranty (2017).",
+           paste("Timothée Flutre, Hélène Muranty (2018).",
                  "rgs3:", packageDescription("rgs3")$Title, ".",
                  "R package version", packageVersion("rgs3"), ".",
                  packageDescription("rgs3")$URL)

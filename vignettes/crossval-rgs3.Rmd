@@ -1,6 +1,6 @@
 ---
 title: "Cross-validation with rgs3"
-author: "Hélène Muranty and Timothée Flutre (INRA)"
+author: "Timothée Flutre (INRA)"
 date: "`r format(Sys.time(), '%d/%m/%Y %H:%M:%S')`"
 output:
   html_document:
@@ -41,6 +41,12 @@ Load the `rgs3` package (available [here](https://github.com/INRA/rgs3)):
 ```{r load_pkg}
 suppressPackageStartupMessages(library(rgs3))
 packageVersion("rgs3")
+```
+
+Choose the number of cores to run cross validation in parallel (if available):
+```{r}
+suppressPackageStartupMessages(library(parallel))
+nb.cores <- max(detectCores() - 1, 1)
 ```
 
 Then, read first the vignette `intro-rgs3` before this one.
@@ -85,7 +91,7 @@ dim(genos)
 Let us choose an identifier for our analysis, which will be used for all files, so that it will be easy to remove them at the end:
 
 ```{r task_id}
-task.id <- "crossval-rgs3"
+task.id <- "task-execGS3_crossval-rgs3"
 ```
 
 Use the utility function:
@@ -125,7 +131,7 @@ Note that the number of iterations here is voluntarily low, so that the vignette
 
 # Perform K-fold cross-validation
 
-Let's use 5 folds for this vignette (and run in parallel with 2 cores, if available):
+Let's use 5 folds for this vignette:
 
 ```{r cv}
 results.cv <- crossValWithGs3(
@@ -136,8 +142,8 @@ results.cv <- crossValWithGs3(
     ped.file = NULL,
     nb.folds = 5,
     seed = 123,
-    remove.files = "none", # use "some" in real-life applications
-    nb.cores = 2,
+    remove.files = "all",
+    nb.cores = nb.cores,
     verbose = 2)
 ```
 
@@ -146,12 +152,19 @@ results.cv <- crossValWithGs3(
 
 ```{r}
 results.cv
-apply(results.cv[,c("rmspe","cor.p","reg.intercept","reg.slope")], 2, function(x){
-  c(mean=mean(x), sd=sd(x))
-})
+apply(results.cv[,c("rmspe","cor.p","cor.p.div.h","reg.intercept","reg.slope")],
+      2, function(x){
+        c(mean=mean(x), sd=sd(x))
+      })
 ```
 
 It is also possible to have multiple replicates, using the function `crossValRepWithGs3`.
+
+
+
+# Acknowledgments
+
+* Hélène Muranty
 
 
 # Appendix

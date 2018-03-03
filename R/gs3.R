@@ -1,4 +1,4 @@
-## Copyright 2016,2017 Institut National de la Recherche Agronomique (INRA)
+## Copyright 2016-2018 Institut National de la Recherche Agronomique (INRA)
 ##
 ## This file is part of rgs3.
 ##
@@ -553,6 +553,7 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' @param genos matrix of SNP genotypes
 ##' @param config list containing the generic configuration for GS3
 ##' @param ped.file path to the file containing the pedigree
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
 ##' @param remove.files remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them
 ##' @param verbose verbosity level (0/1/2)
 ##' @return named vector with metrics
@@ -562,15 +563,51 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                          valid.geno.idx.per.fold,
                          dat, col.id, col.trait, binary.trait,
-                         genos, config, ped.file,
+                         genos, config, ped.file, afs,
                          remove.files, verbose=1){
-  out <- stats::setNames(c(fold.id, rep(NA, 8)),
-                         c("fold", "train.size", "nb.obs", "valid.size",
-                           "rmspe", "cor.p", "cor.s",
-                           "reg.intercept", "reg.slope"))
+  ## identify the optional random variables
+  has.d <- "dom_SNP" %in% config$ptl$type
+  has.g <- ! is.null(ped.file)
+  has.p <- "perm diagonal" %in% config$ptl$type
+
+  ## prepare the output
+  out <- stats::setNames(c(fold.id, rep(NA, 4)),
+                         c("fold", "genos.train", "obs.train",
+                           "var.a.mean", "var.a.sd"))
+  if(has.d){
+    out["var.d.mean"] <- NA
+    out["var.d.sd"] <- NA
+  }
+  out["var.A.mean"] <- NA
+  out["var.A.sd"] <- NA
+  if(has.d){
+    out["var.D.mean"] <- NA
+    out["var.D.sd"] <- NA
+  }
+  if(has.g){
+    out["var.g.mean"] <- NA
+    out["var.g.sd"] <- NA
+  }
+  if(has.p){
+    out["var.p.mean"] <- NA
+    out["var.p.sd"] <- NA
+  }
+  out["var.e.mean"] <- NA
+  out["var.e.sd"] <- NA
+  out["h2.mean"] <- NA
+  out["h2.sd"] <- NA
+  out["genos.valid"] <- NA
+  out["obs.valid"] <- NA
+  out["rmspe"] <- NA
+  out["cor.p"] <- NA
+  out["cor.p.div.h"] <- NA
+  out["cor.s"] <- NA
+  out["reg.intercept"] <- NA
+  out["reg.slope"] <- NA
 
   nb.folds <- length(fold.ids)
 
+  ## prepare temporary file names
   tif <- paste0(task.id, "_r", rep.id, "_f", fold.ids[fold.id])
   if(verbose > 0){
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds,
@@ -582,6 +619,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   dat.valid.file <- paste0(tif, "_dat-valid.txt")
   geno.valid.file <- paste0(tif, "_geno-valid.txt")
 
+  ## -------------------------------------------------------------------------
   ## training
   if(verbose > 0){
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds,
@@ -589,9 +627,9 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     write(msg, stdout())
   }
   train.genos <- names(which(valid.geno.idx.per.fold != fold.id))
-  out["train.size"] <- length(train.genos)
+  out["genos.train"] <- length(train.genos)
   dat.train <- droplevels(dat[dat[,col.id] %in% train.genos,])
-  out["nb.obs"] <- sum(! is.na(dat.train[, col.trait]))
+  out["obs.train"] <- sum(! is.na(dat.train[, col.trait]))
   genos.train <- genos[train.genos,]
   inds.train <- stats::setNames(object=1:nlevels(dat.train[, col.id]),
                                 nm=levels(dat.train[, col.id]))
@@ -621,14 +659,56 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                                          task.id = tif)
   stdouterr.train.file <- execGs3(config.file = config.train.file,
                                   task.id = tif)
-  if(FALSE) # for debugging purposes
+  if(FALSE){ # for debugging purposes
     stdouterr.train <- readLines(stdouterr.train.file)
+    sols <- utils::read.table(file=config.train$sol.file, header=TRUE)
+  }
+  vcs <- utils::read.table(file=config.train$vcs.file, header=TRUE,
+                           check.names=FALSE)
+  ## see Vitezica et al (2013)
+  out["var.a.mean"] <- mean(vcs$vara)
+  out["var.a.sd"] <- stats::sd(vcs$vara)
+  if(has.d){
+    out["var.d.mean"] <- mean(vcs$vard)
+    out["var.d.sd"] <- stats::sd(vcs$vard)
+  }
+  vcs$varA <- vcs$vara * 2 * sum(afs * (1 - afs))
+  vcs$varD <- NA
+  if(has.d){
+    vcs$varA <- vcs$varA +
+      vcs$vard * 2 * sum(afs * (1 - afs) * (1 - 2 * afs)^2)
+    vcs$varD <- vcs$vard * 2^2 * sum(afs^2 * (1 - afs)^2)
+  }
+  out["var.A.mean"] <- mean(vcs$varA)
+  out["var.A.sd"] <- stats::sd(vcs$varA)
+  if(has.d){
+    out["var.D.mean"] <- mean(vcs$varD)
+    out["var.D.sd"] <- stats::sd(vcs$varD)
+  }
+  if(has.g){
+    out["var.g.mean"] <- mean(vcs$varg)
+    out["var.g.sd"] <- stats::sd(vcs$varg)
+  }
+  if(has.p){
+    out["var.p.mean"] <- mean(vcs$varp)
+    out["var.p.sd"] <- stats::sd(vcs$varp)
+  }
+  out["var.e.mean"] <- mean(vcs$vare)
+  out["var.e.sd"] <- stats::sd(vcs$vare)
+  vcs$h2 <- vcs$varA / (vcs$varA +
+                        ifelse(has.d, vcs$varD, 0) +
+                        ifelse(has.g, vcs$varg, 0) +
+                        ifelse(has.p, vcs$varp, 0) +
+                        vcs$vare)
+  out["h2.mean"] <- mean(vcs[, "h2"])
+  out["h2.sd"] <- stats::sd(vcs[, "h2"])
   if(verbose > 0){
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds,
                   ": end training")
     write(msg, stdout())
   }
 
+  ## -------------------------------------------------------------------------
   ## validation
   if(verbose > 0){
     msg <- paste0("rep ", rep.id, ", fold ", fold.id, "/", nb.folds,
@@ -637,8 +717,9 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   }
   valid.genos <- names(which(valid.geno.idx.per.fold == fold.id))
   stopifnot(all(! valid.genos %in% train.genos))
-  out["valid.size"] <- length(valid.genos)
+  out["genos.valid"] <- length(valid.genos)
   dat.valid <- droplevels(dat[dat[,col.id] %in% valid.genos,])
+  out["obs.valid"] <- nrow(dat.valid)
   genos.valid <- genos[valid.genos,]
   inds.valid <- stats::setNames(object=1:nlevels(dat.valid[, col.id]),
                                 nm=levels(dat.valid[, col.id]))
@@ -684,11 +765,8 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     write(msg, stdout())
   }
   if(FALSE){ # for debugging purposes
-    vcs <- utils::read.table(file=config.train$vcs.file, header=TRUE,
-                             check.names=FALSE)
     ebvs <- utils::read.table(file=paste0(config.valid.file, "_EBVs"),
                               header=TRUE)
-    sols <- utils::read.table(file=config.train$sol.file, header=TRUE)
   }
   pred <- utils::read.table(file=pred.file, header=TRUE)
   stopifnot(nrow(pred) == nrow(dat.valid))
@@ -704,6 +782,11 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                              y=pred$prediction,
                              use="complete.obs",
                              method="pearson")
+  out["cor.p.div.h"] <- stats::cor(x=dat.valid[, col.trait],
+                                   y=pred$prediction,
+                                   use="complete.obs",
+                                   method="pearson") /
+    sqrt(out["h2.mean"])
   out["cor.s"] <- stats::cor(x=dat.valid[, col.trait],
                              y=pred$prediction,
                              use="complete.obs",
@@ -763,6 +846,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
 ##' @param task.id character containing the task identifier used as prefix for the output files (for each fold, its index will be added)
 ##' @param binary.trait logical
 ##' @param ped.file path to the file containing the pedigree
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
 ##' @param rep.id identifier of the current replicate
 ##' @param nb.folds number of folds
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
@@ -780,6 +864,7 @@ crossValWithGs3 <- function(genos,
                             task.id="GS3",
                             binary.trait=FALSE,
                             ped.file=NULL,
+                            afs=NULL,
                             rep.id=1,
                             nb.folds=10,
                             seed=NULL,
@@ -788,7 +873,8 @@ crossValWithGs3 <- function(genos,
                             cl=NULL,
                             verbose=1){
   requireNamespace("parallel")
-  stopifnot(isValidConfig(config))
+  stopifnot(isValidConfig(config),
+            "add_SNP" %in% config$ptl$type)
   col.id <- config$rec.id
   col.trait <- config$twc[1]
   stopifnot(isValidGenos(genos, NULL),
@@ -807,6 +893,23 @@ crossValWithGs3 <- function(genos,
   if(all(nb.cores > 1, Sys.info()["sysname"] == "Windows", is.null(cl))){
     wasClCreated <- TRUE
     cl <- parallel::makeCluster(nb.cores)
+  }
+
+  if(is.null(afs)){
+    if(verbose > 0){
+      msg <- paste0("rep ", rep.id, ": estimate allele frequencies...")
+      write(msg, stdout())
+    }
+    afs <- colMeans(genos, na.rm=TRUE) / 2
+    if(verbose > 0)
+      print(summary(afs))
+  } else{
+    stopifnot(! is.null(names(afs)),
+              all(colnames(genos) %in% names(afs)))
+    afs <- afs[colnames(genos)]
+    stopifnot(all(! is.na(afs)),
+              all(afs >= 0),
+              all(afs <= 1))
   }
 
   if(verbose > 0){
@@ -836,7 +939,7 @@ crossValWithGs3 <- function(genos,
       crossValFold(task.id, rep.id, fold.ids, fold.id,
                    valid.geno.idx.per.fold,
                    dat, col.id, col.trait, binary.trait,
-                   genos, config, ped.file,
+                   genos, config, ped.file, afs,
                    remove.files, verbose - 1)
     })
   } else{
@@ -845,7 +948,7 @@ crossValWithGs3 <- function(genos,
         crossValFold(task.id, rep.id, fold.ids, fold.id,
                      valid.geno.idx.per.fold,
                      dat, col.id, col.trait, binary.trait,
-                     genos, config, ped.file,
+                     genos, config, ped.file, afs,
                      remove.files, verbose - 1)
       },
       error=function(e) {
@@ -878,6 +981,7 @@ crossValWithGs3 <- function(genos,
 ##' @param task.id character containing the task identifier used as prefix for the output files (for each fold, its index will be added)
 ##' @param binary.trait logical
 ##' @param ped.file path to the file containing the pedigree
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
 ##' @param nb.reps number of replicates (a set of folds will be sampled for each replicate)
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to sample as many seeds as the number of replicates, these new seeds being used to shuffle genotypes before partitioning per fold
 ##' @param nb.cores.rep number of cores to launch replicates in parallel (via \code{\link[parallel]{mclapply}}, on Unix-like computers)
@@ -896,6 +1000,7 @@ crossValRepWithGs3 <- function(genos,
                                task.id="GS3",
                                binary.trait=FALSE,
                                ped.file=NULL,
+                               afs=NULL,
                                nb.reps=50,
                                seed=NULL,
                                nb.cores.rep=1,
@@ -905,7 +1010,9 @@ crossValRepWithGs3 <- function(genos,
                                cl=NULL,
                                verbose=1){
   requireNamespace("parallel")
-  stopifnot(is.numeric(nb.reps),
+  stopifnot(isValidConfig(config),
+            "add_SNP" %in% config$ptl$type,
+            is.numeric(nb.reps),
             nb.reps > 0)
 
   if(! is.null(seed))
@@ -914,6 +1021,23 @@ crossValRepWithGs3 <- function(genos,
 
   if(nb.cores.rep > 1)
     nb.cores.fold <- 1
+
+  if(is.null(afs)){
+    if(verbose > 0){
+      msg <- "estimate allele frequencies..."
+      write(msg, stdout())
+    }
+    afs <- colMeans(genos, na.rm=TRUE) / 2
+    if(verbose > 0)
+      print(summary(afs))
+  } else{
+    stopifnot(! is.null(names(afs)),
+              all(colnames(genos) %in% names(afs)))
+    afs <- afs[colnames(genos)]
+    stopifnot(all(! is.na(afs)),
+              all(afs >= 0),
+              all(afs <= 1))
+  }
 
   out <- parallel::mclapply(seq(nb.reps), function(rep.id){
     if(verbose > 0){
@@ -927,6 +1051,7 @@ crossValRepWithGs3 <- function(genos,
                     config=config,
                     task.id=task.id,
                     ped.file=ped.file,
+                    afs=afs,
                     rep.id=rep.id,
                     nb.folds=nb.folds,
                     seed=seeds[rep.id],

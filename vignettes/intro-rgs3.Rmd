@@ -42,8 +42,7 @@ It is part of the R package [`rgs3`](https://github.com/INRA/rgs3), a free softw
 
 The `rgs3` package can be downloaded from [GitHub](https://github.com/INRA/rgs3).
 To install it, we can follow the indications in the [`README.md`](https://github.com/INRA/rgs3/blob/master/README.md) file.
-For the `rgs3` package to work successfully, the [GS3](http://snp.toulouse.inra.fr/~alegarra/) program should be already installed.
-Note that this vignette requires a version at least as recent as January 6, 2016.
+For the `rgs3` package to work successfully, the [GS3](http://snp.toulouse.inra.fr/~alegarra/) program should be already installed (some binaries are available from [GitHub](https://github.com/alegarra/gs3/releases)).
 
 Once the installation is completed, we can load the package into R:
 
@@ -69,7 +68,7 @@ To know exactly what the GS3 program can do, it is strongly advised to also read
 
 Notations:
 
-* $N$: number of trait measurements
+* $N$: number of trait measurements (observations)
 
 * $Q$: number of generic covariates or cross-classified factors (modeled with fixed effects)
 
@@ -85,17 +84,17 @@ Notations:
 
 * $\boldsymbol{b}$: $Q \times 1$ vector of fixed effects
 
-* $Z$: $N \times P$ design matrix of additive SNP genotypes
+* $Z$: $N \times P$ design matrix of SNP genotypes coded additively
 
-* $\boldsymbol{a}$: $P \times 1$ vector of random additive genotype effects
+* $\boldsymbol{a}$: $P \times 1$ vector of random additive marker locus effects (SNP-based)
 
-* $W$: $N \times P$ design matrix of dominant SNP genotypes
+* $W$: $N \times P$ design matrix of SNP genotypes coded for the dominance
 
-* $\boldsymbol{d}$: $P \times 1$ vector of random dominant genotype effects
+* $\boldsymbol{d}$: $P \times 1$ vector of random dominant marker locus effects (SNP-based)
 
 * $T$: $N \times I$ design matrix of individuals
 
-* $\boldsymbol{g}$: $I \times 1$ vector of random polygenic infinitesimal effects (pedigree-based)
+* $\boldsymbol{g}$: $I \times 1$ vector of random polygenic infinitesimal effects (pedigree-based), such as $\boldsymbol{g} \sim \mathcal{N}_I(\boldsymbol{0}, \sigma_g^2 \, A)$ where $A$ is the $I \times I$ matrix of additive genetic relationships (also called the "numerator relationship matrix")
 
 * $S$: $N \times J$ design matrix of permanent environmental covariates
 
@@ -105,9 +104,13 @@ Notations:
 
 * $\sigma_a^2, \sigma_d^2, \sigma_g^2, \sigma_p^2, \sigma_e^2$: variance components of each random effect
 
+* $R$: $N \times N$ variance-covariance matrix of the errors where $R_{n,n} = \frac{\sigma_e^2}{w_n}$ with $w_n$ the weight of the $n$-th observation
+
 Likelihood:
 
-$\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + W \boldsymbol{d} + T \boldsymbol{g} + S \boldsymbol{p} + \boldsymbol{e}$
+$\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + W \boldsymbol{d} + T \boldsymbol{g} + S \boldsymbol{p} + \boldsymbol{e}$ where $\boldsymbol{e} \sim \mathcal{N}_N(\boldsymbol{0}, \, R)$
+
+Priors: see the GS3 manual
 
 Estimate of the "generalized" genomic breeding value of individual $i$:
 
@@ -116,26 +119,24 @@ $EBV_i = \hat{g}_i + \boldsymbol{z}_i \hat{\boldsymbol{a}} + \boldsymbol{w}_i \h
 
 # Simulation
 
-A data set was simulated to illustrate how the `rgs3` package works:
+A data set was simulated to illustrate how the `rgs3` package works (caution, the notations for the simulation model are different than for the inference model above):
 
 1. SNP genotypes were simulated for $I$ individuals via the sequential coalescent with recombination model from [Staab et al (2015)](http://dx.doi.org/10.1093/bioinformatics/btu861);
 
-2. $P$ SNPs were encoded as allele dose, filtered out if they had a minor allele frequency below 1%, and gathered into a matrix used to estimate the $I \times I$ additive relationships matrix $G$ using the first estimator from [VanRaden (2008)](http://dx.doi.org/10.3168/jds.2007-0980);
+2. $P$ SNPs were encoded as allele dose (in $\{0,1,2\}$), filtered out if they had a minor allele frequency below 1%, and gathered into a matrix used to estimate the $I \times I$ additive genomic relationships matrix $G_{\text{VR1}}$ using the first estimator from [VanRaden (2008)](http://dx.doi.org/10.3168/jds.2007-0980);
 
-3. finally, the following model was used to simulate $N$ phenotypes over $Q$ years, with $N = Q \times I$:
+3. finally, the following model was used to simulate $N$ phenotypes over $Q$ years, with $N = Q \times I$ (each genotype is phenotyped each year):
 
-$\boldsymbol{y} = X \boldsymbol{b} + T \boldsymbol{g} + \boldsymbol{e}$ where $\boldsymbol{g} \sim \mathcal{N}_I(\boldsymbol{0}, \sigma_g^2 G)$ and $\boldsymbol{e} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma_e^2 \text{Id})$ with $\sigma_e^2 = 5$ and $\sigma_g^2 = 15$.
+$\boldsymbol{y} = X \boldsymbol{\beta} + Z \boldsymbol{u} + \boldsymbol{\epsilon}$ where $\boldsymbol{u} \sim \mathcal{N}_I(\boldsymbol{0}, \sigma_u^2 \, G_{\text{VR1}})$ and $\boldsymbol{\epsilon} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma_\epsilon^2 \, \text{Id})$ with $\sigma_u^2 = 15$ and $\sigma_\epsilon^2 = 5$, where the narrow-sense heritability here is $h^2 = \frac{\sigma_u^2}{\sigma_u^2 + \sigma_\epsilon^2}$.
 
-Note that, in GS3, it is assumed that $\boldsymbol{g} \sim \mathcal{N}_I(\boldsymbol{0}, \sigma_g^2 A)$ where $A$ is the numerator relationship matrix calculated from the pedigree.
+Useful approximation (see [Gianola et al, 2009](http://dx.doi.org/10.1534/genetics.109.103952)): $\sigma_u^2 \approx \sigma_a^2 \times 2 \sum_p f_p (1 - f_p)$, where $f_p$ is the allele frequency of the $p$-th SNP.
 
-Moreover, the fitted model will be:
-
-$\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + \boldsymbol{e}$ where $\boldsymbol{a} \sim \mathcal{N}_P(\boldsymbol{0}, \sigma_a^2 \text{Id})$ and $\boldsymbol{e} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma_e^2 \text{Id})$
-
-To check the inference results, we will use the following approximation, $\sigma_g^2 = \sigma_a^2 \times 2 \sum_p f_p (1 - f_p)$, where $f_p$ is the allele frequency of the $p$-th SNP (see [Gianola et al, 2009](http://dx.doi.org/10.1534/genetics.109.103952)).
+Moreover, with such an experimental design, the broad-sense heritability (especially used in plant breeding, see [Piepho and Mohring, 2007](http://www.genetics.org/cgi/doi/10.1534/genetics.107.074229)) here is: $H^2 = \frac{\sigma_u^2}{\sigma_u^2 + \frac{\sigma_\epsilon^2}{Q}}$.
 
 
 # Load the data into R
+
+## Phenotypes
 
 Load the phenotypes:
 
@@ -150,6 +151,10 @@ phenos[phenos$geno == levels(phenos$geno)[1],]
 (I <- nlevels(phenos$geno))
 (Q <- nlevels(phenos$year))
 (N <- nrow(phenos))
+sigma.u2 <- 15
+sigma.epsilon2 <- 5
+(h2 <- sigma.u2 / (sigma.u2 + sigma.epsilon2))
+(H2 <- sigma.u2 / (sigma.u2 + (sigma.epsilon2 / Q)))
 ```
 
 As can be seen above, the phenotype file contains `r ncol(phenos)` columns.
@@ -168,6 +173,8 @@ boxplot(phenos$response1 ~ phenos$year, notch=TRUE, horizontal=TRUE, las=1,
 
 We can see at least a "year" effect, as well as substantial within-year variation likely coming from both genetic and environmental sources.
 The goal will be to quantify their respective contributions.
+
+## Genotypes
 
 Load the genotypes (only SNPs with a minor allele frequency above 0.01 are available):
 
@@ -208,18 +215,18 @@ hist(mafs, breaks="FD", main="Minor allele frequencies",
      col="grey", border="white", xlim=c(0, 0.5), las=1)
 ```
 
-We can also have a quick look at the additive genetic relationships:
+We can also have a quick look at the additive genomic relationships:
 
 ```{r plot_G}
 M <- genos - 1
 Pmat <- matrix(rep(1,nrow(genos))) %*% (2 * (afs - 0.5))
 Z <- M - Pmat
-G <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
-G[1:3,1:3]
-summary(diag(G)) # under HWE, average should be 1
-summary(G[upper.tri(G)]) # under HWE, average should be 0
+G.VR1 <- tcrossprod(Z, Z) / (2 * sum(afs * (1 - afs)))
+G.VR1[1:3,1:3]
+summary(diag(G.VR1)) # under HWE, average should be 1
+summary(G.VR1[upper.tri(G.VR1)]) # under HWE, average should be 0
 par(mar=c(1,1,2,1))
-image(t(G)[,nrow(G):1], axes=FALSE, main="G")
+image(t(G.VR1)[,nrow(G.VR1):1], axes=FALSE, main="G.VR1")
 ```
 
 
@@ -234,27 +241,49 @@ head(genovals)
 summary(genovals)
 ```
 
+Fit the "rrBLUP/GBLUP" model via ReML (see [Habier et al, 2007](http://dx.doi.org/10.1534/genetics.107.081190)):
 ```{r rrBLUP, fig.width=5}
 if(require(rrBLUP)){
   st <- system.time(
-      fit.rrBLUP <- mixed.solve(y=phenos$response1,
-                                Z=model.matrix(~ phenos$geno - 1),
-                                K=G,
-                                X=model.matrix(~ phenos$year),
-                                method="REML", SE=TRUE, return.Hinv=TRUE))
+      fit.rrBLUP.g <- mixed.solve(y=phenos$response1,
+                                  Z=model.matrix(~ phenos$geno - 1),
+                                  K=G.VR1,
+                                  X=model.matrix(~ phenos$year),
+                                  method="REML", SE=TRUE, return.Hinv=TRUE))
   print(st)
-  message(paste0("estimate of sigma.e2 = ", fit.rrBLUP$Ve))
-  message(paste0("estimate of sigma.g2 = ", fit.rrBLUP$Vu))
-  message(paste0("cor(true.g, pred.g) = ", cor(genovals,
-                                               fit.rrBLUP$u[names(genovals)])))
-  print(accuracy.rrBLUP <- lm(fit.rrBLUP$u[names(genovals)] ~ genovals))
-  plot(x=genovals, y=fit.rrBLUP$u[names(genovals)], xlab="True breeding values",
+  message(paste0("estimate of sigma.epsilon2 = ", fit.rrBLUP.g$Ve))
+  message(paste0("estimate of sigma.u2 = ", fit.rrBLUP.g$Vu))
+  message(paste0("cor(true.u, pred.u) = ", cor(genovals,
+                                               fit.rrBLUP.g$u[names(genovals)])))
+  print(accuracy.rrBLUP <- lm(fit.rrBLUP.g$u[names(genovals)] ~ genovals))
+  plot(x=genovals, y=fit.rrBLUP.g$u[names(genovals)], xlab="True breeding values",
        ylab="Predicted breeding values", main="Check with rrBLUP", las=1, asp=1)
   abline(v=0, h=0, a=0, b=1, lty=2); abline(accuracy.rrBLUP, col="red")
+  st <- system.time(
+      fit.rrBLUP.mrk <- mixed.solve(y=phenos$response1,
+                                    Z=model.matrix(~ phenos$geno - 1) %*% genos,
+                                    X=model.matrix(~ phenos$year),
+                                    method="REML", SE=TRUE, return.Hinv=TRUE))
+  print(st)
+  message(paste0("estimate of sigma.epsilon2 = ", fit.rrBLUP.mrk$Ve))
+  message(paste0("estimate of sigma.a2 = ", fit.rrBLUP.mrk$Vu))
+  sigma.u2.hat <- fit.rrBLUP.mrk$Vu * 2 * sum(afs * (1 - afs))
+  message(paste0("estimate of sigma.u2 = ", sigma.u2.hat))
+  u.hat <- genos[names(genovals),] %*% fit.rrBLUP.mrk$u[colnames(genos)]
+  message(paste0("cor(true.u, pred.u) = ", cor(genovals,
+                                               u.hat)))
+  y.hat <- model.matrix(~ phenos$geno - 1) %*% u.hat
+  message(paste0("cor(y, y-hat) = ", cor(phenos$response1,
+                                         y.hat)))
+  h2.hat <- sigma.u2.hat / (sigma.u2.hat + fit.rrBLUP.mrk$Ve)
+  message(paste0("estimate of h2 = ", h2.hat))
+  message(paste0("cor(y, y-hat) / h = ", cor(phenos$response1,
+                                             y.hat) /
+                                         sqrt(h2.hat)))
 }
 ```
 
-The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes).
+The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes, see section "Simulation" above).
 
 
 # Write the data into files formatted for GS3
@@ -262,7 +291,7 @@ The estimates are quite close from the "true" values (i.e. those used to simulat
 Let us choose an identifier for our analysis, which will be used for all files, so that it will be easy to remove them at the end:
 
 ```{r task_id}
-task.id <- "intro-rgs3"
+task.id <- "task-execGS3_intro-rgs3"
 ```
 
 Encode the individual identifiers as consecutive numbers from $1$ to $I$:
@@ -290,6 +319,10 @@ writeGenosForGs3(x=genos, file=genos.file.gs3, inds=inds)
 
 
 # Estimate parameters with GS3
+
+The data set simulated as described above will now be analyzed with GS3 via the following model:
+
+$\boldsymbol{y} = X \boldsymbol{b} + Z \boldsymbol{a} + \boldsymbol{e}$ where $\boldsymbol{a} \sim \mathcal{N}_P(\boldsymbol{0}, \sigma_a^2 \, \text{Id})$ and $\boldsymbol{e} \sim \mathcal{N}_N(\boldsymbol{0}, \sigma_e^2 \, \text{Id})$
 
 Write the configuration file for GS3 (you can also use the helper function `getDefaultConfig`):
 
@@ -410,6 +443,27 @@ message(paste0("posterior sd of '2varapqpi' = ",
 
 The estimates are quite close from the "true" values (i.e. those used to simulate the phenotypes, see section "Simulation" above).
 
+Look at the heritability posteriors:
+
+```{r posterior_herit}
+vcs$varu <- vcs$vara * 2 * sum(afs * (1 - afs))
+vcs$h2 <- vcs$varu / (vcs$varu + vcs$vare)
+vcs$H2 <- vcs$varu / (vcs$varu + (vcs$vare / Q))
+message(paste0("posterior mean of 'varu' = ",
+               mean(vcs[idx.tokeep, "varu"])))
+message(paste0("posterior sd of 'varu' = ",
+               sd(vcs[idx.tokeep, "varu"])))
+h2.hat <- mean(vcs[idx.tokeep, "h2"])
+message(paste0("posterior mean of 'h2' = ",
+               h2.hat))
+message(paste0("posterior sd of 'varu' = ",
+               sd(vcs[idx.tokeep, "h2"])))
+message(paste0("posterior mean of 'H2' = ",
+               mean(vcs[idx.tokeep, "H2"])))
+message(paste0("posterior sd of 'H2' = ",
+               sd(vcs[idx.tokeep, "H2"])))
+```
+
 
 # Assess estimated effects
 
@@ -498,6 +552,16 @@ plot(x=genovals, y=u.ebv[names(genovals)], asp=1, las=1,
      xlab="True genotypic values", ylab="Predicted genotypic values",
      main="Check with GS3")
 abline(h=0, v=0, a=0, b=1, lty=2); abline(accuracy.GS3, col="red")
+```
+
+With real data sets, the genotypic values are usually unknown.
+A common practice hence is to look at the correlation between individual phenotypes and those predicted based on the markers, divided by the square root of the estimated narrow-sense heritability (see [Daetwyler et al, 2013](http://dx.doi.org/10.1534/genetics.112.147983)):
+
+```{r cor_phenos_pred}
+y.hat <- model.matrix(~ phenos$geno - 1) %*%
+  genos %*% sols$solution[sols$effect == 2]
+cor(x=phenos$response1, y=y.hat)
+cor(x=phenos$response1, y=y.hat) / sqrt(h2.hat)
 ```
 
 

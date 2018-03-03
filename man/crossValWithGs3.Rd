@@ -5,7 +5,7 @@
 \title{Cross-validation}
 \usage{
 crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
-  ped.file = NULL, rep.id = 1, nb.folds = 10, seed = NULL,
+  ped.file = NULL, afs = NULL, rep.id = 1, nb.folds = 10, seed = NULL,
   remove.files = "some", nb.cores = 1, cl = NULL, verbose = 1)
 }
 \arguments{
@@ -20,6 +20,8 @@ crossValWithGs3(genos, dat, config, task.id = "GS3", binary.trait = FALSE,
 \item{binary.trait}{logical}
 
 \item{ped.file}{path to the file containing the pedigree}
+
+\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability}
 
 \item{rep.id}{identifier of the current replicate}
 
