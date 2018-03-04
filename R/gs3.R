@@ -498,16 +498,40 @@ vcs2mcmc <- function(config, afs=NULL){
               all(afs >= 0),
               all(afs <= 1))
 
+  ## load the samples
   d <- utils::read.table(config$vcs.file, header=TRUE, check.names=FALSE)
+
+  ## identify the optional model components
+  has.d <- "dom_SNP" %in% config$ptl$type
+  has.g <- config$ped.file != ""
+  has.p <- "perm diagonal" %in% config$ptl$type
+  is.bayesCpi <- config$use.mix == "T"
+  is.blasso <- config$blasso
+
+  ## discard useless columns
+  if(! has.d & "vard" %in% colnames(d))
+    d$vard <- NULL
+  if(! has.g & "varg" %in% colnames(d))
+    d$varg <- NULL
+  if(! has.p & "varp" %in% colnames(d))
+    d$varp <- NULL
+  if(! is.bayesCpi){
+    if("pa_1" %in% colnames(d))
+      d$pa_1 <- NULL
+    if("pd_1" %in% colnames(d))
+      d$pd_1 <- NULL
+  }
+  if(! is.blasso & "lambda2" %in% colnames(d))
+    d$lambda2 <- NULL
   for(j in seq_along(d))
     if(! is.numeric(d[[j]]))
       d[[j]] <- NULL
 
-  if(! is.null(afs)){
-    has.d <- "dom_SNP" %in% config$ptl$type
+  ## compute the variances of add and dom genotypic values
+  if(! is.null(afs))
     d <- addStatGenoVarComp(d, afs, has.d)
-  }
 
+  ## convert to 'coda' format
   vcs <- coda::mcmc.list(coda::mcmc(d))
 
   return(vcs)
