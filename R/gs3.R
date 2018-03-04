@@ -453,6 +453,27 @@ execGs3 <- function(config.file, task.id="GS3"){
   return(stdouterr.file)
 }
 
+identifyOptModComps <- function(config){
+  stopifnot(isValidConfig(config))
+
+  out <- rep(FALSE, 5)
+  names(out) <- c("has.d", "has.g", "has.p", "is.bayesCpi", "is.blasso")
+
+  idx <- which("dom_SNP" %in% config$ptl$type)
+  if(length(idx) == 1)
+    out["has.d"] <- config$mod[idx] == "T"
+
+  out["has.g"] <- config$ped.file != ""
+
+  out["has.p"] <- "perm diagonal" %in% config$ptl$type
+
+  out["is.bayesCpi"] <- config$use.mix == "T"
+
+  out["is.blasso"] <- config$blasso
+
+  return(out)
+}
+
 addStatGenoVarComp <- function(dat, afs, has.d=FALSE){
   stopifnot(is.data.frame(dat),
             all(c("vara", "vard") %in% colnames(dat)),
@@ -502,26 +523,22 @@ vcs2mcmc <- function(config, afs=NULL){
   d <- utils::read.table(config$vcs.file, header=TRUE, check.names=FALSE)
 
   ## identify the optional model components
-  has.d <- "dom_SNP" %in% config$ptl$type
-  has.g <- config$ped.file != ""
-  has.p <- "perm diagonal" %in% config$ptl$type
-  is.bayesCpi <- config$use.mix == "T"
-  is.blasso <- config$blasso
+  opt.mod.comps <- identifyOptModComps(config)
 
   ## discard useless columns
-  if(! has.d & "vard" %in% colnames(d))
+  if(! opt.mod.comps["has.d"] & "vard" %in% colnames(d))
     d$vard <- NULL
-  if(! has.g & "varg" %in% colnames(d))
+  if(! opt.mod.comps["has.g"] & "varg" %in% colnames(d))
     d$varg <- NULL
-  if(! has.p & "varp" %in% colnames(d))
+  if(! opt.mod.comps["has.p"] & "varp" %in% colnames(d))
     d$varp <- NULL
-  if(! is.bayesCpi){
+  if(! opt.mod.comps["is.bayesCpi"]){
     if("pa_1" %in% colnames(d))
       d$pa_1 <- NULL
     if("pd_1" %in% colnames(d))
       d$pd_1 <- NULL
   }
-  if(! is.blasso & "lambda2" %in% colnames(d))
+  if(! opt.mod.comps["is.blasso"] & "lambda2" %in% colnames(d))
     d$lambda2 <- NULL
   for(j in seq_along(d))
     if(! is.numeric(d[[j]]))
@@ -529,7 +546,7 @@ vcs2mcmc <- function(config, afs=NULL){
 
   ## compute the variances of add and dom genotypic values
   if(! is.null(afs))
-    d <- addStatGenoVarComp(d, afs, has.d)
+    d <- addStatGenoVarComp(d, afs, opt.mod.comps["has.d"])
 
   ## convert to 'coda' format
   vcs <- coda::mcmc.list(coda::mcmc(d))
@@ -630,29 +647,27 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                          genos, config, ped.file, afs,
                          remove.files, verbose=1){
   ## identify the optional random variables
-  has.d <- "dom_SNP" %in% config$ptl$type
-  has.g <- ped.file != ""
-  has.p <- "perm diagonal" %in% config$ptl$type
+  opt.mod.comps <- identifyOptModComps(config)
 
   ## prepare the output
   out <- stats::setNames(c(fold.id, rep(NA, 4)),
                          c("fold", "genos.train", "obs.train",
                            "var.a.mean", "var.a.sd"))
-  if(has.d){
+  if(opt.mod.comps["has.d"]){
     out["var.d.mean"] <- NA
     out["var.d.sd"] <- NA
   }
   out["var.A.mean"] <- NA
   out["var.A.sd"] <- NA
-  if(has.d){
+  if(opt.mod.comps["has.d"]){
     out["var.D.mean"] <- NA
     out["var.D.sd"] <- NA
   }
-  if(has.g){
+  if(opt.mod.comps["has.g"]){
     out["var.g.mean"] <- NA
     out["var.g.sd"] <- NA
   }
-  if(has.p){
+  if(opt.mod.comps["has.p"]){
     out["var.p.mean"] <- NA
     out["var.p.sd"] <- NA
   }
@@ -732,32 +747,32 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   ## see Vitezica et al (2013)
   out["var.a.mean"] <- mean(vcs$vara)
   out["var.a.sd"] <- stats::sd(vcs$vara)
-  if(has.d){
+  if(opt.mod.comps["has.d"]){
     out["var.d.mean"] <- mean(vcs$vard)
     out["var.d.sd"] <- stats::sd(vcs$vard)
   }
-  vcs <- addStatGenoVarComp(vcs, afs, has.d)
+  vcs <- addStatGenoVarComp(vcs, afs, opt.mod.comps["has.d"])
   vcs$varD <- NA
   out["var.A.mean"] <- mean(vcs$varA)
   out["var.A.sd"] <- stats::sd(vcs$varA)
-  if(has.d){
+  if(opt.mod.comps["has.d"]){
     out["var.D.mean"] <- mean(vcs$varD)
     out["var.D.sd"] <- stats::sd(vcs$varD)
   }
-  if(has.g){
+  if(opt.mod.comps["has.g"]){
     out["var.g.mean"] <- mean(vcs$varg)
     out["var.g.sd"] <- stats::sd(vcs$varg)
   }
-  if(has.p){
+  if(opt.mod.comps["has.p"]){
     out["var.p.mean"] <- mean(vcs$varp)
     out["var.p.sd"] <- stats::sd(vcs$varp)
   }
   out["var.e.mean"] <- mean(vcs$vare)
   out["var.e.sd"] <- stats::sd(vcs$vare)
   vcs$h2 <- vcs$varA / (vcs$varA +
-                        ifelse(has.d, vcs$varD, 0) +
-                        ifelse(has.g, vcs$varg, 0) +
-                        ifelse(has.p, vcs$varp, 0) +
+                        ifelse(opt.mod.comps["has.d"], vcs$varD, 0) +
+                        ifelse(opt.mod.comps["has.g"], vcs$varg, 0) +
+                        ifelse(opt.mod.comps["has.p"], vcs$varp, 0) +
                         vcs$vare)
   out["h2.mean"] <- mean(vcs[, "h2"])
   out["h2.sd"] <- stats::sd(vcs[, "h2"])
