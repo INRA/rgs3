@@ -505,7 +505,7 @@ vcs2mcmc <- function(config, afs=NULL){
 
   if(! is.null(afs)){
     has.d <- "dom_SNP" %in% config$ptl$type
-    d <- addStatGenoVarComp(d, has.d)
+    d <- addStatGenoVarComp(d, afs, has.d)
   }
 
   vcs <- coda::mcmc.list(coda::mcmc(d))
