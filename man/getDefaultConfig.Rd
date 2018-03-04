@@ -4,10 +4,17 @@
 \alias{getDefaultConfig}
 \title{Default configuration}
 \usage{
-getDefaultConfig(nb.snps = NA, method = "VCE", ptl = NULL, twc = NA,
+getDefaultConfig(data.file = NA, genos.file = NA, ped.file = "",
+  nb.snps = NA, method = "VCE", ptl = NULL, twc = c(NA, 0),
   rec.id = NA, use.mix = "F", blasso = FALSE, task.id = "GS3")
 }
 \arguments{
+\item{data.file}{path to the text file with the data (if not known yet, use NA instead of NULL)}
+
+\item{genos.file}{path to the text file with the genotypes (if not known yet, use NA instead of NULL)}
+
+\item{ped.file}{path to the text file with the pedigree (if not used, use NA or "" instead of NULL)}
+
 \item{nb.snps}{number of SNPs in the SNP genotype file}
 
 \item{method}{character with the method to use, among BLUP/MCMCBLUP/VCE/PREDICT}

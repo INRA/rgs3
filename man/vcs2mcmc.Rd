@@ -4,10 +4,12 @@
 \alias{vcs2mcmc}
 \title{Load GS3 results}
 \usage{
-vcs2mcmc(vcs.file)
+vcs2mcmc(config, afs = NULL)
 }
 \arguments{
-\item{vcs.file}{path to the file containing the variance components' samples}
+\item{config}{list containing the configuration for GS3}
+
+\item{afs}{vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013)}
 }
 \value{
 \code{\link[coda]{mcmc.list}}
@@ -21,12 +23,11 @@ summary(vcs)
 coda::effectiveSize(vcs)
 genos <- as.matrix(read.table(genos.file))
 afs <- colMeans(genos) / 2
-tmp <- cbind(as.matrix(vcs[[1]]), varA=vcs[[1]][,"vara"] * 2 * sum(afs * (1 - afs)))
-vcs[[1]] <- coda::as.mcmc(tmp)
+vcs <- vcs2mcmc(config$vcs.file, afs)
 summary(vcs)}
 }
 \seealso{
-\code{link{execGs3}}
+\code{\link{execGs3}}
 }
 \author{
 Timothee Flutre

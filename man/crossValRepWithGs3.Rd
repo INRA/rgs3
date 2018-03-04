@@ -2,10 +2,10 @@
 % Please edit documentation in R/gs3.R
 \name{crossValRepWithGs3}
 \alias{crossValRepWithGs3}
-\title{Replicated cross-validation}
+\title{Replicated K-fold cross-validation}
 \usage{
 crossValRepWithGs3(genos, dat, config, task.id = "GS3",
-  binary.trait = FALSE, ped.file = NULL, afs = NULL, nb.reps = 50,
+  binary.trait = FALSE, ped.file = "", afs = NULL, nb.reps = 50,
   seed = NULL, nb.cores.rep = 1, nb.folds = 10, remove.files = "some",
   nb.cores.fold = 1, cl = NULL, verbose = 1)
 }
@@ -20,9 +20,9 @@ crossValRepWithGs3(genos, dat, config, task.id = "GS3",
 
 \item{binary.trait}{logical}
 
-\item{ped.file}{path to the file containing the pedigree}
+\item{ped.file}{path to the file containing the pedigree (if not used, use NA or "" instead of NULL)}
 
-\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability}
+\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Vitezica et al, 2013), then used to compute narrow-sense heritability}
 
 \item{nb.reps}{number of replicates (a set of folds will be sampled for each replicate)}
 

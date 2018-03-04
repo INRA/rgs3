@@ -2,7 +2,7 @@
 % Please edit documentation in R/gs3.R
 \name{getPartitionGenos}
 \alias{getPartitionGenos}
-\title{Partition for cross-validation}
+\title{Partition genotypes for cross-validation}
 \usage{
 getPartitionGenos(geno.names, nb.folds = 10, seed = NULL)
 }

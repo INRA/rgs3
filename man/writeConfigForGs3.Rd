@@ -4,8 +4,7 @@
 \alias{writeConfigForGs3}
 \title{Write configuration}
 \usage{
-writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
-  task.id = "GS3")
+writeConfigForGs3(config, task.id = "GS3")
 }
 \arguments{
 \item{config}{list containing the configuration for GS3 via the following components:
@@ -32,12 +31,6 @@ writeConfigForGs3(config, data.file, ped.file = NULL, genos.file = NULL,
   \item{use.mix}{one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)}
   \item{blasso}{boolean indicating if the Bayesian lasso prior should be used or not}
 }}
-
-\item{data.file}{path to the text file with the data}
-
-\item{ped.file}{path to the text file with the pedigree}
-
-\item{genos.file}{path to the text file with the genotypes}
 
 \item{task.id}{character containing the task identifier used as prefix for the configuration file; will be followed by \code{"_config.txt"}}
 }

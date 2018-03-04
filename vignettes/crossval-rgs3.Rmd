@@ -139,7 +139,6 @@ results.cv <- crossValWithGs3(
     dat = phenos,
     config = config,
     task.id = task.id,
-    ped.file = NULL,
     nb.folds = 5,
     seed = 123,
     remove.files = "all",

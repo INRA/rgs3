@@ -163,6 +163,9 @@ writeGenosForGs3 <- function(x, file, inds){
 ##' Default configuration
 ##'
 ##' Return a list corresponding to a default configuration as used in the vignette.
+##' @param data.file path to the text file with the data (if not known yet, use NA instead of NULL)
+##' @param genos.file path to the text file with the genotypes (if not known yet, use NA instead of NULL)
+##' @param ped.file path to the text file with the pedigree (if not used, use NA or "" instead of NULL)
 ##' @param nb.snps number of SNPs in the SNP genotype file
 ##' @param method character with the method to use, among BLUP/MCMCBLUP/VCE/PREDICT
 ##' @param ptl data frame indicating, for each effect, its position in the data file, its type, and its number of levels
@@ -175,9 +178,15 @@ writeGenosForGs3 <- function(x, file, inds){
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{writeConfigForGs3}}, \code{\link{isValidConfig}}
 ##' @export
-getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
+getDefaultConfig <- function(data.file=NA, genos.file=NA, ped.file="",
+                             nb.snps=NA, method="VCE", ptl=NULL, twc=c(NA,0),
                              rec.id=NA, use.mix="F", blasso=FALSE,
                              task.id="GS3"){
+  stopifnot(! is.null(data.file),
+            ! is.null(genos.file),
+            ! is.null(ped.file))
+  if(is.na(ped.file))
+    ped.file <- ""
   if(! is.na(nb.snps))
     stopifnot(is.numeric(nb.snps),
               length(nb.snps) == 1,
@@ -204,7 +213,10 @@ getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
                    all(method == "VCE", use.mix == FALSE),
                    TRUE))
 
-  config <- list(num.loci=nb.snps,
+  config <- list(data.file=data.file,
+                 genos.file=genos.file,
+                 ped.file=ped.file,
+                 num.loci=nb.snps,
                  method=method,
                  simul="F",
                  niter=10000,
@@ -242,14 +254,25 @@ getDefaultConfig <- function(nb.snps=NA, method="VCE", ptl=NULL, twc=NA,
 ##' @export
 isValidConfig <- function(config){
   if(is.list(config)){
-    if(all(c("num.loci", "method", "simul", "niter", "burnin", "thin",
+    if(all(c("data.file", "genos.file", "ped.file",
+             "num.loci", "method", "simul", "niter", "burnin", "thin",
              "conv.crit", "correct", "vcs.file", "sol.file", "twc", "num.eff",
              "ptl", "vc", "rec.id", "cont", "mod", "ap", "dp", "use.mix",
              "blasso") %in% names(config))){
-      all(! is.na(config$num.loci),
+      all(ifelse(! is.na(config$data.file),
+                 file.exists(config$data.file),
+                 TRUE),
+          ifelse(! is.na(config$genos.file),
+                 file.exists(config$genos.file),
+                 TRUE),
+          ifelse(config$ped.file != "",
+                 file.exists(config$ped.file),
+                 TRUE),
+          ! is.na(config$num.loci),
           config$method %in% c("BLUP", "MCMCBLUP", "VCE", "PREDICT"),
           is.vector(config$twc),
           length(config$twc) == 2,
+          all(! is.na(config$twc)),
           config$twc[1] > 0,
           config$twc[2] >= 0,
           config$twc[1] != config$twc[2],
@@ -311,46 +334,36 @@ isValidConfig <- function(config){
 ##'   \item{use.mix}{one-letter character indicating if the Bayes C pi prior should be used (T) or not (F)}
 ##'   \item{blasso}{boolean indicating if the Bayesian lasso prior should be used or not}
 ##' }
-##' @param data.file path to the text file with the data
-##' @param ped.file path to the text file with the pedigree
-##' @param genos.file path to the text file with the genotypes
 ##' @param task.id character containing the task identifier used as prefix for the configuration file; will be followed by \code{"_config.txt"}
 ##' @return path to the text file to which the configuration for GS3 will be written
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{getDefaultConfig}}, \code{\link{execGs3}}
 ##' @export
 writeConfigForGs3 <- function(config,
-                              data.file,
-                              ped.file=NULL,
-                              genos.file=NULL,
                               task.id="GS3"){
   stopifnot(isValidConfig(config),
-            file.exists(data.file))
-  tmp <- utils::read.table(file=data.file, sep=" ", nrows=2)
+            file.exists(config$data.file))
+  tmp <- utils::read.table(file=config$data.file, sep=" ", nrows=2)
   stopifnot(config$twc[1] <= ncol(tmp),
             ifelse(config$twc[2] != 0,
                    config$twc[2] <= ncol(tmp),
                    TRUE))
-  if(! is.null(ped.file))
-    stopifnot(file.exists(ped.file))
-  if(! is.null(genos.file)){
-    stopifnot(file.exists(genos.file))
-    tmp <- readLines(con=genos.file, n=1)
+  if(config$ped.file != "")
+    stopifnot(file.exists(config$ped.file))
+  if(! is.na(config$genos.file)){
+    stopifnot(file.exists(config$genos.file))
+    tmp <- readLines(con=config$genos.file, n=1)
     stopifnot(config$num.loci == nchar(tmp) - 48) # see writeGenosForGs3()
   }
 
   config.file <- paste0(task.id, "_config.txt")
 
   txt <- paste0("DATAFILE",
-                "\n", data.file)
-  if(! is.null(ped.file)){
-    txt <- paste0(txt, "\nPEDIGREE FILE",
-                  "\n", ped.file)
-  } else
-    txt <- paste0(txt, "\nPEDIGREE FILE",
-                  "\n", "")
+                "\n", config$data.file)
+  txt <- paste0(txt, "\nPEDIGREE FILE",
+                "\n", config$ped.file)
   txt <- paste0(txt, "\nGENOTYPE FILE",
-                "\n", genos.file)
+                "\n", config$genos.file)
   txt <- paste0(txt, "\nNUMBER OF LOCI (might be 0)",
                 "\n", sprintf("%i", config$num.loci))
   txt <- paste0(txt, "\nMETHOD (BLUP/MCMCBLUP/VCE/PREDICT)",
@@ -440,37 +453,64 @@ execGs3 <- function(config.file, task.id="GS3"){
   return(stdouterr.file)
 }
 
+addStatGenoVarComp <- function(dat, afs, has.d=FALSE){
+  stopifnot(is.data.frame(dat),
+            all(c("vara", "vard") %in% colnames(dat)),
+            is.logical(has.d))
+
+  out <- dat
+
+  out$varA <- out$vara * 2 * sum(afs * (1 - afs))
+  if(has.d){
+    out$varA <- out$varA +
+      out$vard * 2 * sum(afs * (1 - afs) * (1 - 2 * afs)^2)
+    out$varD <- out$vard * 2^2 * sum(afs^2 * (1 - afs)^2)
+  }
+
+  return(out)
+}
+
 ##' Load GS3 results
 ##'
 ##' Read the file containing the variance components' samples into a \code{\link[coda]{mcmc.list}} object.
-##' @param vcs.file path to the file containing the variance components' samples
+##' @param config list containing the configuration for GS3
+##' @param afs vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013)
 ##' @return \code{\link[coda]{mcmc.list}}
 ##' @author Timothee Flutre
-##' @seealso \code{link{execGs3}}
+##' @seealso \code{\link{execGs3}}
 ##' @examples
 ##' \dontrun{vcs <- vcs2mcmc(config$vcs.file)
 ##' summary(vcs)
 ##' coda::effectiveSize(vcs)
 ##' genos <- as.matrix(read.table(genos.file))
 ##' afs <- colMeans(genos) / 2
-##' tmp <- cbind(as.matrix(vcs[[1]]), varA=vcs[[1]][,"vara"] * 2 * sum(afs * (1 - afs)))
-##' vcs[[1]] <- coda::as.mcmc(tmp)
+##' vcs <- vcs2mcmc(config$vcs.file, afs)
 ##' summary(vcs)}
 ##' @export
-vcs2mcmc <- function(vcs.file){
+vcs2mcmc <- function(config, afs=NULL){
   if(! requireNamespace("coda", quietly=TRUE))
     stop("Pkg coda needed for this function to work. Please install it.",
          call.=FALSE)
-  stopifnot(is.character(vcs.file),
-            length(vcs.file) == 1,
-            file.exists(vcs.file))
+  stopifnot(isValidConfig(config))
+  if(! is.null(afs))
+    stopifnot(is.numeric(afs),
+              all(! is.na(afs)),
+              all(afs >= 0),
+              all(afs <= 1))
 
-  d <- utils::read.table(vcs.file, header=TRUE, check.names=FALSE)
+  d <- utils::read.table(config$vcs.file, header=TRUE, check.names=FALSE)
   for(j in seq_along(d))
     if(! is.numeric(d[[j]]))
       d[[j]] <- NULL
 
-  return(coda::mcmc.list(coda::mcmc(d)))
+  if(! is.null(afs)){
+    has.d <- "dom_SNP" %in% config$ptl$type
+    d <- addStatGenoVarComp(d, has.d)
+  }
+
+  vcs <- coda::mcmc.list(coda::mcmc(d))
+
+  return(vcs)
 }
 
 ##' Clean output files
@@ -502,7 +542,7 @@ cleanGs3 <- function(config, config.file, task.id="GS3"){
       file.remove(f)
 }
 
-##' Partition for cross-validation
+##' Partition genotypes for cross-validation
 ##'
 ##' Return a vector which content corresponds to fold indices and names to genotypes.
 ##' The fold index of a given genotype indicates that, for this fold, the genotype won't be used for training but for validation.
@@ -553,7 +593,7 @@ getPartitionGenos <- function(geno.names, nb.folds=10, seed=NULL){
 ##' @param genos matrix of SNP genotypes
 ##' @param config list containing the generic configuration for GS3
 ##' @param ped.file path to the file containing the pedigree
-##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Vitezica et al, 2013), then used to compute narrow-sense heritability
 ##' @param remove.files remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them
 ##' @param verbose verbosity level (0/1/2)
 ##' @return named vector with metrics
@@ -567,7 +607,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                          remove.files, verbose=1){
   ## identify the optional random variables
   has.d <- "dom_SNP" %in% config$ptl$type
-  has.g <- ! is.null(ped.file)
+  has.g <- ped.file != ""
   has.p <- "perm diagonal" %in% config$ptl$type
 
   ## prepare the output
@@ -650,12 +690,12 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                    file = geno.train.file,
                    inds = inds.train)
   config.train <- config
+  config.train$data.file <- dat.train.file
+  config.train$genos.file <- geno.train.file
+  config.train$ped.file <- ped.file
   config.train$vcs.file <- sub(task.id, tif, config$vcs.file)
   config.train$sol.file <- sub(task.id, tif, config$sol.file)
   config.train.file <- writeConfigForGs3(config = config.train,
-                                         data.file = dat.train.file,
-                                         ped.file = ped.file,
-                                         genos.file = geno.train.file,
                                          task.id = tif)
   stdouterr.train.file <- execGs3(config.file = config.train.file,
                                   task.id = tif)
@@ -672,13 +712,8 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     out["var.d.mean"] <- mean(vcs$vard)
     out["var.d.sd"] <- stats::sd(vcs$vard)
   }
-  vcs$varA <- vcs$vara * 2 * sum(afs * (1 - afs))
+  vcs <- addStatGenoVarComp(vcs, afs, has.d)
   vcs$varD <- NA
-  if(has.d){
-    vcs$varA <- vcs$varA +
-      vcs$vard * 2 * sum(afs * (1 - afs) * (1 - 2 * afs)^2)
-    vcs$varD <- vcs$vard * 2^2 * sum(afs^2 * (1 - afs)^2)
-  }
   out["var.A.mean"] <- mean(vcs$varA)
   out["var.A.sd"] <- stats::sd(vcs$varA)
   if(has.d){
@@ -742,11 +777,11 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
                    file = geno.valid.file,
                    inds = inds.valid)
   config.valid <- config.train
+  config.valid$data.file <- dat.valid.file
+  config.valid$genos.file <- geno.valid.file
+  config.valid$ped.file <- ped.file
   config.valid$method <- "PREDICT"
   config.valid.file <- writeConfigForGs3(config = config.valid,
-                                         data.file = dat.valid.file,
-                                         ped.file = ped.file,
-                                         genos.file = geno.valid.file,
                                          task.id = tif)
   stdouterr.valid.file <- execGs3(config.file = config.valid.file,
                                   task.id = tif)
@@ -836,7 +871,7 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
   return(out)
 }
 
-##' Cross-validation
+##' K-fold cross-validation
 ##'
 ##' Perform K-fold cross-validation with GS3, and report metrics as advised in \href{http://dx.doi.org/10.1534/genetics.112.147983}{Daetwyler et al. (2013)}.
 ##' Files are saved in the current directory.
@@ -845,8 +880,8 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
 ##' @param config list containing the configuration for GS3
 ##' @param task.id character containing the task identifier used as prefix for the output files (for each fold, its index will be added)
 ##' @param binary.trait logical
-##' @param ped.file path to the file containing the pedigree
-##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
+##' @param ped.file path to the file containing the pedigree (if not used, use NA or "" instead of NULL)
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Vitezica et al, 2013), then used to compute narrow-sense heritability
 ##' @param rep.id identifier of the current replicate
 ##' @param nb.folds number of folds
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to shuffle genotypes before partitioning per fold
@@ -863,7 +898,7 @@ crossValWithGs3 <- function(genos,
                             config,
                             task.id="GS3",
                             binary.trait=FALSE,
-                            ped.file=NULL,
+                            ped.file="",
                             afs=NULL,
                             rep.id=1,
                             nb.folds=10,
@@ -877,6 +912,9 @@ crossValWithGs3 <- function(genos,
             "add_SNP" %in% config$ptl$type)
   col.id <- config$rec.id
   col.trait <- config$twc[1]
+  stopifnot(! is.null(ped.file))
+  if(is.na(ped.file))
+    ped.file <- ""
   stopifnot(isValidGenos(genos, NULL),
             config$num.loci == ncol(genos),
             isValidData(dat, NULL, col.id, col.trait, binary.trait),
@@ -904,7 +942,8 @@ crossValWithGs3 <- function(genos,
     if(verbose > 0)
       print(summary(afs))
   } else{
-    stopifnot(! is.null(names(afs)),
+    stopifnot(is.numeric(afs),
+              ! is.null(names(afs)),
               all(colnames(genos) %in% names(afs)))
     afs <- afs[colnames(genos)]
     stopifnot(all(! is.na(afs)),
@@ -972,7 +1011,7 @@ crossValWithGs3 <- function(genos,
   return(out)
 }
 
-##' Replicated cross-validation
+##' Replicated K-fold cross-validation
 ##'
 ##' Perform replicated K-fold cross-validation with GS3, i.e. call \code{\link{crossValWithGs3}} several times, with different seeds.
 ##' @param genos matrix of SNP genotypes
@@ -980,8 +1019,8 @@ crossValWithGs3 <- function(genos,
 ##' @param config list containing the configuration for GS3
 ##' @param task.id character containing the task identifier used as prefix for the output files (for each fold, its index will be added)
 ##' @param binary.trait logical
-##' @param ped.file path to the file containing the pedigree
-##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability
+##' @param ped.file path to the file containing the pedigree (if not used, use NA or "" instead of NULL)
+##' @param afs vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); if NULL, will be estimated from \code{genos}; used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Vitezica et al, 2013), then used to compute narrow-sense heritability
 ##' @param nb.reps number of replicates (a set of folds will be sampled for each replicate)
 ##' @param seed if not NULL, this seed for the pseudo-random number generator will be used to sample as many seeds as the number of replicates, these new seeds being used to shuffle genotypes before partitioning per fold
 ##' @param nb.cores.rep number of cores to launch replicates in parallel (via \code{\link[parallel]{mclapply}}, on Unix-like computers)
@@ -999,7 +1038,7 @@ crossValRepWithGs3 <- function(genos,
                                config,
                                task.id="GS3",
                                binary.trait=FALSE,
-                               ped.file=NULL,
+                               ped.file="",
                                afs=NULL,
                                nb.reps=50,
                                seed=NULL,
@@ -1014,6 +1053,9 @@ crossValRepWithGs3 <- function(genos,
             "add_SNP" %in% config$ptl$type,
             is.numeric(nb.reps),
             nb.reps > 0)
+  stopifnot(! is.null(ped.file))
+  if(is.na(ped.file))
+    ped.file <- ""
 
   if(! is.null(seed))
     set.seed(seed)
@@ -1031,7 +1073,8 @@ crossValRepWithGs3 <- function(genos,
     if(verbose > 0)
       print(summary(afs))
   } else{
-    stopifnot(! is.null(names(afs)),
+    stopifnot(is.numeric(afs),
+              ! is.null(names(afs)),
               all(colnames(genos) %in% names(afs)))
     afs <- afs[colnames(genos)]
     stopifnot(all(! is.na(afs)),

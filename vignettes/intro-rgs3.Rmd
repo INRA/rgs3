@@ -334,12 +334,14 @@ Write the configuration file for GS3 (you can also use the helper function `getD
                    nlevels=c(Q,
                              0),
                    stringsAsFactors=FALSE))
-config <- list(num.loci=P,
+config <- list(data.file=phenos.file.gs3,
+               genos.file=genos.file.gs3,
+               ped.file="",
+               num.loci=P,
                method="VCE",
                simul="F",
-               niter=1*10^4,
-               burnin=1*10^3,
-               thin=10,
+               ## niter=2000, burnin=200, thin=2,     # debug
+               niter=1*10^4, burnin=1*10^3, thin=10,
                conv.crit="1d-8",
                correct=1000,
                vcs.file=paste0(getwd(), "/", task.id, "var.txt"),
@@ -360,9 +362,6 @@ config <- list(num.loci=P,
                blasso=FALSE)
 isValidConfig(config=config)
 config.file <- writeConfigForGs3(config=config,
-                                 data.file=phenos.file.gs3,
-                                 ped.file=NULL,
-                                 genos.file=genos.file.gs3,
                                  task.id=task.id)
 ```
 

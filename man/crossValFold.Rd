@@ -33,7 +33,7 @@ crossValFold(task.id, rep.id, fold.ids, fold.id, valid.geno.idx.per.fold, dat,
 
 \item{ped.file}{path to the file containing the pedigree}
 
-\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Gianola et al, 2009), then used to compute narrow-sense heritability}
+\item{afs}{vector of allele frequencies which names are SNP identifiers (column names of \code{genos}); used to compute the variance of additive genotypic values from the variance of additive SNP effects (see Vitezica et al, 2013), then used to compute narrow-sense heritability}
 
 \item{remove.files}{remove files per fold (none/some/all); use \code{"some"} in real-life applications in order to keep estimates of SNP effects per fold, thereby allowing to perform genomic prediction afterwards by averaging them}
 
