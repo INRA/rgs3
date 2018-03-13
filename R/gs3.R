@@ -196,7 +196,9 @@ getDefaultConfig <- function(data.file=NA, genos.file=NA, ped.file="",
               ncol(ptl) == 3,
               all(colnames(ptl) %in% c("position", "type", "nlevels")),
               all(ptl$type %in% c("cross", "cov", "add_SNP", "dom_SNP",
-                                  "add_animal", "perm_diagonal")))
+                                  "add_animal", "perm_diagonal")),
+              ifelse("add_animal" %in% ptl$type,
+                     ped.file != "", TRUE))
   } else
     ptl <- data.frame(position=NA, type=NA, nlevels=NA)
   if(! is.na(rec.id))
@@ -259,6 +261,8 @@ isValidConfig <- function(config){
              "conv.crit", "correct", "vcs.file", "sol.file", "twc", "num.eff",
              "ptl", "vc", "rec.id", "cont", "mod", "ap", "dp", "use.mix",
              "blasso") %in% names(config))){
+      if(is.na(config$ped.file))
+        config$ped.file <- ""
       all(ifelse(! is.na(config$data.file),
                  file.exists(config$data.file),
                  TRUE),
@@ -281,6 +285,8 @@ isValidConfig <- function(config){
           all(colnames(config$ptl) %in% c("position", "type", "nlevels")),
           all(config$ptl$type %in% c("cross", "cov", "add_SNP", "dom_SNP",
                                      "add_animal", "perm_diagonal")),
+          ifelse("add_animal" %in% config$ptl$type,
+                 config$ped.file != "", TRUE),
           nrow(config$ptl) == config$num.eff,
           is.vector(config$mod),
           length(config$mod) == config$num.eff,
@@ -454,18 +460,26 @@ execGs3 <- function(config.file, task.id="GS3"){
 }
 
 identifyOptModComps <- function(config){
-  stopifnot(isValidConfig(config))
+  stopifnot(is.list(config),
+            all(c("ptl","mod","ped.file","use.mix","blasso") %in%
+                names(config)))
 
   out <- rep(FALSE, 5)
   names(out) <- c("has.d", "has.g", "has.p", "is.bayesCpi", "is.blasso")
 
-  idx <- which("dom_SNP" %in% config$ptl$type)
+  idx <- which(config$ptl$type == "dom_SNP")
   if(length(idx) == 1)
     out["has.d"] <- config$mod[idx] == "T"
 
-  out["has.g"] <- config$ped.file != ""
+  if(config$ped.file != ""){
+    idx <- which(config$ptl$type == "add_animal")
+    if(length(idx) == 1)
+      out["has.g"] <- config$mod[idx] == "T"
+  }
 
-  out["has.p"] <- "perm diagonal" %in% config$ptl$type
+  idx <- which(config$ptl$type == "perm_diagonal")
+  if(length(idx) == 1)
+    out["has.p"] <- config$mod[idx] == "T"
 
   out["is.bayesCpi"] <- config$use.mix == "T"
 
@@ -476,7 +490,11 @@ identifyOptModComps <- function(config){
 
 addStatGenoVarComp <- function(dat, afs, has.d=FALSE){
   stopifnot(is.data.frame(dat),
-            all(c("vara", "vard") %in% colnames(dat)),
+            "vara" %in% colnames(dat),
+            is.numeric(afs),
+            all(! is.na(afs)),
+            all(afs >= 0),
+            all(afs <= 1),
             is.logical(has.d))
 
   out <- dat
@@ -947,8 +965,8 @@ crossValWithGs3 <- function(genos,
                             cl=NULL,
                             verbose=1){
   requireNamespace("parallel")
-  stopifnot(isValidConfig(config),
-            "add_SNP" %in% config$ptl$type)
+  stopifnot(is.list(config),
+            all(c("rec.id", "twc", "num.loci") %in%names(config)))
   col.id <- config$rec.id
   col.trait <- config$twc[1]
   stopifnot(! is.null(ped.file))
@@ -1005,36 +1023,39 @@ crossValWithGs3 <- function(genos,
   }
   fold.ids <- sprintf(fmt=paste0("%0", floor(log10(nb.folds))+1, "i"),
                       1:nb.folds)
-  ## out <- lapply(seq(nb.folds), function(fold.id){
-  ##   crossValFold(task.id, fold.ids, fold.id,
-  ##                valid.geno.idx.per.fold,
-  ##                dat, col.id, col.trait, binary.trait,
-  ##                genos, config, ped.file,
-  ##                remove.files, verbose)
-  ## })
-  if(Sys.info()["sysname"] == "Windows"){
-    out <- parallel::parLapply(cl, seq(nb.folds), function(fold.id){
+  if(nb.cores == 1){
+    out <- lapply(seq(nb.folds), function(fold.id){
       crossValFold(task.id, rep.id, fold.ids, fold.id,
                    valid.geno.idx.per.fold,
                    dat, col.id, col.trait, binary.trait,
                    genos, config, ped.file, afs,
                    remove.files, verbose - 1)
     })
-  } else{
-    out <- parallel::mclapply(seq(nb.folds), function(fold.id){
-      tryCatch({
+  } else{ # nb.cores > 1
+    if(Sys.info()["sysname"] == "Windows"){
+      out <- parallel::parLapply(cl, seq(nb.folds), function(fold.id){
         crossValFold(task.id, rep.id, fold.ids, fold.id,
                      valid.geno.idx.per.fold,
                      dat, col.id, col.trait, binary.trait,
                      genos, config, ped.file, afs,
                      remove.files, verbose - 1)
-      },
-      error=function(e) {
-        print(e)
-        stop(e)
       })
-    }, mc.cores=nb.cores)
-  }
+    } else{
+      out <- parallel::mclapply(seq(nb.folds), function(fold.id){
+        tryCatch({
+          crossValFold(task.id, rep.id, fold.ids, fold.id,
+                       valid.geno.idx.per.fold,
+                       dat, col.id, col.trait, binary.trait,
+                       genos, config, ped.file, afs,
+                       remove.files, verbose - 1)
+        },
+        error=function(e) {
+          print(e)
+          stop(e)
+        })
+      }, mc.cores=nb.cores)
+    } # end of "non-Windows" case
+  } # end of "nb.cores > 1" case
 
   if(verbose > 0){
     msg <- paste0("rep ", rep.id, ": prepare output...")
@@ -1088,9 +1109,7 @@ crossValRepWithGs3 <- function(genos,
                                cl=NULL,
                                verbose=1){
   requireNamespace("parallel")
-  stopifnot(isValidConfig(config),
-            "add_SNP" %in% config$ptl$type,
-            is.numeric(nb.reps),
+  stopifnot(is.numeric(nb.reps),
             nb.reps > 0)
   stopifnot(! is.null(ped.file))
   if(is.na(ped.file))
