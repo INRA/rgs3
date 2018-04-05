@@ -291,6 +291,16 @@ isValidConfig <- function(config){
           is.vector(config$mod),
           length(config$mod) == config$num.eff,
           all(config$mod %in% c("T", "F")),
+          is.numeric(config$burnin),
+          length(config$burnin) == 1,
+          config$burnin >= 0,
+          is.numeric(config$niter),
+          length(config$niter) == 1,
+          config$niter >= 1,
+          is.numeric(config$thin),
+          length(config$thin) == 1,
+          config$thin >= 0,
+          config$thin < config$niter,
           is.data.frame(config$vc),
           ncol(config$vc) == 3,
           all(colnames(config$vc) %in% c("var", "exp", "df")),
@@ -499,6 +509,7 @@ addStatGenoVarComp <- function(dat, afs, has.d=FALSE){
 
   out <- dat
 
+  ## Vitezica et al (2013): page 1226, bottom of the right column
   out$varA <- out$vara * 2 * sum(afs * (1 - afs))
   if(has.d){
     out$varA <- out$varA +
@@ -564,10 +575,20 @@ vcs2mcmc <- function(config, afs=NULL){
 
   ## compute the variances of add and dom genotypic values
   if(! is.null(afs))
-    d <- addStatGenoVarComp(d, afs, opt.mod.comps["has.d"])
+    d <- addStatGenoVarComp(d, afs, ! is.null(d$vard))
+
+  ## compute narrow-sense heritability (h^2)
+  d$h2 <- d$varA / (d$varA +
+                    ifelse(! is.null(d$varD), d$varD, 0) +
+                    ifelse(! is.null(d$varg), d$varg, 0) +
+                    ifelse(! is.null(d$varg), d$varp, 0) +
+                    d$vare)
 
   ## convert to 'coda' format
-  vcs <- coda::mcmc.list(coda::mcmc(d))
+  vcs <- coda::mcmc.list(coda::mcmc(d,
+                                    start=config$burnin + 1,
+                                    end=config$burnin + config$niter,
+                                    thin=config$thin))
 
   return(vcs)
 }

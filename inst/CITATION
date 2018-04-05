@@ -2,15 +2,14 @@ citHeader("To cite rgs3 in publications, use:")
 
 citEntry(entry  = "Manual",
          title  = paste("rgs3:", packageDescription("rgs3")$Title),
-         author = personList(as.person("Timothée Flutre"),
-                             as.person("Hélène Muranty")),
+         author = personList(as.person("Timothée Flutre")),
          year   = "2018",
          note   = paste("R package version", packageVersion("rgs3")),
          url    = "https://github.com/INRA/rgs3",
 
          textVersion =
-           paste("Timothée Flutre, Hélène Muranty (2018).",
-                 "rgs3:", packageDescription("rgs3")$Title, ".",
-                 "R package version", packageVersion("rgs3"), ".",
-                 packageDescription("rgs3")$URL)
+           paste0("Timothée Flutre (2018).",
+                  " rgs3: ", packageDescription("rgs3")$Title, ".",
+                  " R package version ", packageVersion("rgs3"), ".",
+                  " ", packageDescription("rgs3")$URL)
          )
