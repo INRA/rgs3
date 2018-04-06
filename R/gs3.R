@@ -791,7 +791,6 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     out["var.d.sd"] <- stats::sd(vcs$vard)
   }
   vcs <- addStatGenoVarComp(vcs, afs, opt.mod.comps["has.d"])
-  vcs$varD <- NA
   out["var.A.mean"] <- mean(vcs$varA)
   out["var.A.sd"] <- stats::sd(vcs$varA)
   if(opt.mod.comps["has.d"]){
