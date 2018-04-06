@@ -2,8 +2,8 @@ Package: rgs3
 Title: R package wrapping the GS3 program for genomic selection
 Version: 0.5.4
 Authors@R: c(
-    person("Timothée", "Flutre", email = "timothee.flutre@inra.fr", role = c("cre", "aut")),
-    person("Hélène", "Muranty", email = "helene.muranty@inra.fr", role = c("ctb")))
+    person("Timothée", "Flutre", email="timothee.flutre@inra.fr", role=c("cre", "aut"), comment=c(ORCID="0000-0003-4489-4782")),
+    person("Hélène", "Muranty", email="helene.muranty@inra.fr", role=c("ctb")))
 Description: The rgs3 package wraps the GS3 program for genomic selection (http://genoweb.toulouse.inra.fr/~alegarra/).
 License: GPL-3
 Copyright: Institut National de la Recherche Agronomique (INRA)
