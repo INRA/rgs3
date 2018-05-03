@@ -498,23 +498,40 @@ identifyOptModComps <- function(config){
   return(out)
 }
 
-addStatGenoVarComp <- function(dat, afs, has.d=FALSE){
+addStatGenoVarComp <- function(dat, afs, has.d=FALSE, is.bayesCpi=FALSE){
   stopifnot(is.data.frame(dat),
             "vara" %in% colnames(dat),
             is.numeric(afs),
             all(! is.na(afs)),
             all(afs >= 0),
             all(afs <= 1),
-            is.logical(has.d))
+            is.logical(has.d),
+            is.logical(is.bayesCpi))
+  if(has.d)
+    stopifnot("vard" %in% colnames(dat))
+  if(is.bayesCpi){
+    stopifnot("pa_1" %in% colnames(dat))
+    if(has.d)
+      stopifnot("pd_1" %in% colnames(dat))
+  }
 
   out <- dat
 
-  ## Vitezica et al (2013): page 1226, bottom of the right column
+  ## see Vitezica et al (2013): page 1226, bottom of the right column
+  ## as well as the GS3 manual (section "Use", subsection "output")
   out$varA <- out$vara * 2 * sum(afs * (1 - afs))
+  if(is.bayesCpi)
+    out$varA <- out$varA * out$pa_1
+
   if(has.d){
-    out$varA <- out$varA +
-      out$vard * 2 * sum(afs * (1 - afs) * (1 - 2 * afs)^2)
+    tmp <- out$vard * 2 * sum(afs * (1 - afs) * (1 - 2 * afs)^2)
+    if(is.bayesCpi)
+      tmp <- tmp * out$pd_1
+    out$varA <- out$varA + tmp
+
     out$varD <- out$vard * 2^2 * sum(afs^2 * (1 - afs)^2)
+    if(is.bayesCpi)
+      out$varD <- out$varD * out$pd_1
   }
 
   return(out)
@@ -566,6 +583,9 @@ vcs2mcmc <- function(config, afs=NULL){
       d$pa_1 <- NULL
     if("pd_1" %in% colnames(d))
       d$pd_1 <- NULL
+  } else{
+    if(! opt.mod.comps["has.d"] & "pd_1" %in% colnames(d))
+      d$pd_1 <- NULL
   }
   if(! opt.mod.comps["is.blasso"] & "lambda2" %in% colnames(d))
     d$lambda2 <- NULL
@@ -575,13 +595,15 @@ vcs2mcmc <- function(config, afs=NULL){
 
   ## compute the variances of add and dom genotypic values
   if(! is.null(afs))
-    d <- addStatGenoVarComp(d, afs, ! is.null(d$vard))
+    d <- addStatGenoVarComp(dat=d, afs=afs,
+                            has.d=opt.mod.comps["has.d"],
+                            is.bayesCpi=opt.mod.comps["is.bayesCpi"])
 
   ## compute narrow-sense heritability (h^2)
   d$h2 <- d$varA / (d$varA +
                     ifelse(! is.null(d$varD), d$varD, 0) +
                     ifelse(! is.null(d$varg), d$varg, 0) +
-                    ifelse(! is.null(d$varg), d$varp, 0) +
+                    ifelse(! is.null(d$varp), d$varp, 0) +
                     d$vare)
 
   ## convert to 'coda' format
@@ -790,7 +812,9 @@ crossValFold <- function(task.id, rep.id, fold.ids, fold.id,
     out["var.d.mean"] <- mean(vcs$vard)
     out["var.d.sd"] <- stats::sd(vcs$vard)
   }
-  vcs <- addStatGenoVarComp(vcs, afs, opt.mod.comps["has.d"])
+  vcs <- addStatGenoVarComp(dat=vcs, afs=afs,
+                            has.d=opt.mod.comps["has.d"],
+                            is.bayesCpi=opt.mod.comps["is.bayesCpi"])
   out["var.A.mean"] <- mean(vcs$varA)
   out["var.A.sd"] <- stats::sd(vcs$varA)
   if(opt.mod.comps["has.d"]){
