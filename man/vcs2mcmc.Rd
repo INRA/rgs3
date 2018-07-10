@@ -9,7 +9,7 @@ vcs2mcmc(config, afs = NULL)
 \arguments{
 \item{config}{list containing the configuration for GS3}
 
-\item{afs}{vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013)}
+\item{afs}{vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013), and to compute narrow-sense heritability}
 }
 \value{
 \code{\link[coda]{mcmc.list}}
