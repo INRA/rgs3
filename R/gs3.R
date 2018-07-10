@@ -541,7 +541,7 @@ addStatGenoVarComp <- function(dat, afs, has.d=FALSE, is.bayesCpi=FALSE){
 ##'
 ##' Read the file containing the variance components' samples into a \code{\link[coda]{mcmc.list}} object.
 ##' @param config list containing the configuration for GS3
-##' @param afs vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013)
+##' @param afs vector of allele frequencies (of all the SNPs which genotypes were provided, and only them); used to compute the variance of additive (and dominance) genotypic values from the variance of additive (and dominance) SNP effects (see Vitezica et al, 2013), and to compute narrow-sense heritability
 ##' @return \code{\link[coda]{mcmc.list}}
 ##' @author Timothee Flutre
 ##' @seealso \code{\link{execGs3}}
@@ -594,17 +594,17 @@ vcs2mcmc <- function(config, afs=NULL){
       d[[j]] <- NULL
 
   ## compute the variances of add and dom genotypic values
-  if(! is.null(afs))
+  if(! is.null(afs)){
     d <- addStatGenoVarComp(dat=d, afs=afs,
                             has.d=opt.mod.comps["has.d"],
                             is.bayesCpi=opt.mod.comps["is.bayesCpi"])
-
-  ## compute narrow-sense heritability (h^2)
-  d$h2 <- d$varA / (d$varA +
-                    ifelse(! is.null(d$varD), d$varD, 0) +
-                    ifelse(! is.null(d$varg), d$varg, 0) +
-                    ifelse(! is.null(d$varp), d$varp, 0) +
-                    d$vare)
+    ## compute narrow-sense heritability (h^2)
+    d$h2 <- d$varA / (d$varA +
+                      ifelse(! is.null(d$varD), d$varD, 0) +
+                      ifelse(! is.null(d$varg), d$varg, 0) +
+                      ifelse(! is.null(d$varp), d$varp, 0) +
+                      d$vare)
+  }
 
   ## convert to 'coda' format
   vcs <- coda::mcmc.list(coda::mcmc(d,
