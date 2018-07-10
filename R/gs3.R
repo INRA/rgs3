@@ -599,11 +599,15 @@ vcs2mcmc <- function(config, afs=NULL){
                             has.d=opt.mod.comps["has.d"],
                             is.bayesCpi=opt.mod.comps["is.bayesCpi"])
     ## compute narrow-sense heritability (h^2)
-    d$h2 <- d$varA / (d$varA +
-                      ifelse(! is.null(d$varD), d$varD, 0) +
-                      ifelse(! is.null(d$varg), d$varg, 0) +
-                      ifelse(! is.null(d$varp), d$varp, 0) +
-                      d$vare)
+    denom <- d$varA
+    if(! is.null(d$varD))
+      denom <- denom + d$varD
+    if(! is.null(d$varg))
+      denom <- denom + d$varg
+    if(! is.null(d$varp))
+      denom <- denom + d$varp
+    denom <- denom + d$vare
+    d$h2 <- d$varA / denom
   }
 
   ## convert to 'coda' format
