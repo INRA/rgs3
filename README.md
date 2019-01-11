@@ -1,3 +1,5 @@
+<!-- pandoc README.md -f commonmark -t html -s -o README.html -->
+
 # Package "rgs3"
 
 This directory contains the `rgs3` package for the [R](https://en.wikipedia.org/wiki/R_(programming_language)) software environment.
