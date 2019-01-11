@@ -25,13 +25,16 @@ More precisely, the executable should be present in your [PATH](https://en.wikip
 To check if R properly detects the new directory, open a new R session, and call `Sys.getenv("PATH")`.
 To check if the executable is found in your PATH, open a new R session, and call `system("gs3")` (or `system("gs3.exe")` for Windows).
 
-Then, to install the `rgs3` package, the easiest is to install it directly from GitHub.
-Open an R session and run the following commands:
+Then, to install the `rgs3` package, the easiest is to download the released `.tar.gz` from SourceSup [here](https://sourcesup.renater.fr/frs/?group_id=3306), open a R session and run the following command:
+```
+install.packages("/path/to/rgs3_<version>.tar.gz", repos=NULL, type="source")
+```
+
+You can also install the latest version of the source code directly from GitHub, by opening a R session and running the following commands:
 ```
 library(devtools) # can be installed from the CRAN
 install_github("INRA/rgs3", build_vignettes=TRUE)
 ```
-
 Note that creating the vignettes may take a couple of minutes.
 
 Once this is done, the `rgs3` package should be available on your computer.
